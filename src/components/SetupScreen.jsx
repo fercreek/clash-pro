@@ -116,6 +116,10 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
       >
         GENERAR TORNEO
       </button>
+
+      <p className="text-zinc-700 text-xs text-center pb-2">
+        Made with 🔥 & ❤️ for Salsanamá
+      </p>
     </div>
   )
 }

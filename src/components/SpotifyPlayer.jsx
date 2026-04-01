@@ -194,27 +194,47 @@ export default function SpotifyPlayer() {
   const canStep = mergedTracks.length > 0
 
   return (
-    <div className="w-full bg-zinc-900 border-b border-zinc-800 shrink-0 relative">
+    <div className="relative w-full bg-zinc-900 border-b border-zinc-800 shrink-0">
+      {/* Iframe nativo de Spotify — sin overlays */}
       <div id="spotify-embed-target" />
 
-      <div className="absolute left-2 right-14 top-1/2 -translate-y-1/2 z-10 min-w-0 flex items-center gap-2 pointer-events-none">
-        <Music2 size={14} className="text-red-500 shrink-0" />
-        <div className="min-w-0 text-left">
+      {/* Barra de controles del app — separada del iframe */}
+      <div className="flex items-center gap-1 px-2 h-9 border-t border-zinc-800">
+        <button
+          type="button"
+          disabled={!canStep}
+          onClick={goPrevTrack}
+          className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 transition-colors shrink-0"
+          aria-label="Anterior"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <button
+          type="button"
+          disabled={!canStep}
+          onClick={goNextTrack}
+          className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 transition-colors shrink-0"
+          aria-label="Siguiente"
+        >
+          <ChevronRight size={16} />
+        </button>
+
+        <div className="flex-1 min-w-0 px-1">
           <p className="text-[11px] font-semibold text-white truncate leading-tight">
             {nowPlaying.title}
           </p>
           <p className="text-[10px] text-zinc-500 truncate leading-tight">{nowPlaying.subtitle}</p>
         </div>
-      </div>
 
-      <button
-        type="button"
-        onClick={() => setShowPicker((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-white transition-colors z-10 pointer-events-auto"
-      >
-        {showPicker ? <X size={13} /> : <ListMusic size={13} />}
-        {!showPicker && <span>Listas</span>}
-      </button>
+        <button
+          type="button"
+          onClick={() => setShowPicker((v) => !v)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-700 hover:bg-zinc-600 text-white transition-colors shrink-0"
+        >
+          {showPicker ? <X size={13} /> : <ListMusic size={13} />}
+          {!showPicker && <span>Listas</span>}
+        </button>
+      </div>
 
       {showPicker && (
         <div className="absolute left-0 right-0 top-full bg-zinc-900 border border-zinc-700 rounded-b-xl shadow-2xl z-50 flex flex-col max-h-[min(32rem,78vh)]">
@@ -255,31 +275,10 @@ export default function SpotifyPlayer() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-950/50 shrink-0">
-            <span className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider shrink-0">
+          <div className="flex items-center px-3 py-2 border-b border-zinc-800 bg-zinc-950/50 shrink-0">
+            <span className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">
               Canciones
             </span>
-            <div className="flex-1" />
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={!canStep}
-                onClick={goPrevTrack}
-                className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:pointer-events-none text-white transition-colors"
-                aria-label="Anterior"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                type="button"
-                disabled={!canStep}
-                onClick={goNextTrack}
-                className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:pointer-events-none text-white transition-colors"
-                aria-label="Siguiente"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
           </div>
 
           <form

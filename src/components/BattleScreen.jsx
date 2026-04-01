@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Play, Trophy, Minus, Volume2, VolumeX } from 'lucide-react'
+import { Play, Pause, Trophy, Minus, Volume2, VolumeX, ChevronLeft } from 'lucide-react'
 import {
   useCountdownBeeps,
   loadSoundMuted,
@@ -14,7 +14,7 @@ const PHASE = {
   VOTING: 'voting',
 }
 
-function TimerDisplay({ seconds, total }) {
+function TimerDisplay({ seconds, total, paused }) {
   const pct = total > 0 ? seconds / total : 0
   const isUrgent = seconds <= 10
 
@@ -22,23 +22,23 @@ function TimerDisplay({ seconds, total }) {
     <div className="flex flex-col items-center gap-4">
       <div
         className={`relative flex items-center justify-center rounded-full transition-all duration-500 ease-out ${
-          isUrgent ? 'ring-2 ring-red-500/60 shadow-lg shadow-red-500/20' : ''
-        }`}
+          isUrgent && !paused ? 'ring-2 ring-red-500/60 shadow-lg shadow-red-500/20' : ''
+        } ${paused ? 'opacity-70' : ''}`}
         style={{
           width: 180,
           height: 180,
           background: `conic-gradient(
-            ${isUrgent ? '#ef4444' : '#f97316'} ${pct * 360}deg,
+            ${paused ? '#71717a' : isUrgent ? '#ef4444' : '#f97316'} ${pct * 360}deg,
             #27272a ${pct * 360}deg
           )`,
         }}
       >
         <div className="absolute inset-3 bg-zinc-950 rounded-full flex items-center justify-center overflow-hidden">
-          <div className={isUrgent ? 'animate-pulse' : ''}>
+          <div className={isUrgent && !paused ? 'animate-pulse' : ''}>
             <span
               key={seconds}
               className={`text-5xl font-black tabular-nums animate-digitPop inline-block ${
-                isUrgent ? 'text-red-500' : 'text-white'
+                paused ? 'text-zinc-400' : isUrgent ? 'text-red-500' : 'text-white'
               }`}
             >
               {String(seconds).padStart(2, '0')}
@@ -50,14 +50,18 @@ function TimerDisplay({ seconds, total }) {
   )
 }
 
-export default function BattleScreen({ match, roundTime, onBattleEnd }) {
+export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel }) {
   const [phase, setPhase] = useState(PHASE.ROUND1_READY)
   const [timeLeft, setTimeLeft] = useState(roundTime)
+  const [paused, setPaused] = useState(false)
   const [soundMuted, setSoundMuted] = useState(loadSoundMuted)
   const intervalRef = useRef(null)
+  const onEndRef = useRef(null)
 
-  const isCountingDown =
+  const isRunning =
     phase === PHASE.ROUND1_RUNNING || phase === PHASE.ROUND2_RUNNING
+
+  const isCountingDown = isRunning && !paused
 
   const { unlock } = useCountdownBeeps({
     timeLeft,
@@ -72,24 +76,47 @@ export default function BattleScreen({ match, roundTime, onBattleEnd }) {
     }
   }, [])
 
-  const startCountdown = useCallback(
+  // Start or resume countdown from current timeLeft
+  const runInterval = useCallback(
     (onEnd) => {
       clearTimer()
-      setTimeLeft(roundTime)
+      onEndRef.current = onEnd
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(intervalRef.current)
             intervalRef.current = null
-            onEnd()
+            onEndRef.current?.()
             return 0
           }
           return prev - 1
         })
       }, 1000)
     },
-    [roundTime, clearTimer]
+    [clearTimer]
   )
+
+  const startCountdown = useCallback(
+    (onEnd) => {
+      setTimeLeft(roundTime)
+      setPaused(false)
+      // Use setTimeout 0 so setTimeLeft flushes before interval starts
+      setTimeout(() => runInterval(onEnd), 0)
+    },
+    [roundTime, runInterval]
+  )
+
+  const handlePauseResume = useCallback(() => {
+    if (paused) {
+      // Resume
+      setPaused(false)
+      runInterval(onEndRef.current)
+    } else {
+      // Pause
+      clearTimer()
+      setPaused(true)
+    }
+  }, [paused, clearTimer, runInterval])
 
   useEffect(() => {
     return () => clearTimer()
@@ -121,14 +148,20 @@ export default function BattleScreen({ match, roundTime, onBattleEnd }) {
     [match.id, onBattleEnd]
   )
 
+  // Back: pause first if running, then go back
+  const handleBack = useCallback(() => {
+    clearTimer()
+    onCancel()
+  }, [clearTimer, onCancel])
+
   const round1Label = `Ronda 1 · ${match.playerA}`
   const round2Label = `Ronda 2 · ${match.playerB}`
 
   const phaseLabel = {
     [PHASE.ROUND1_READY]: round1Label,
-    [PHASE.ROUND1_RUNNING]: round1Label,
+    [PHASE.ROUND1_RUNNING]: paused ? `⏸ Pausado · ${match.playerA}` : round1Label,
     [PHASE.ROUND1_DONE]: `✓ R1 terminada — prepara ${match.playerB}`,
-    [PHASE.ROUND2_RUNNING]: round2Label,
+    [PHASE.ROUND2_RUNNING]: paused ? `⏸ Pausado · ${match.playerB}` : round2Label,
     [PHASE.VOTING]: '¿Quién ganó?',
   }[phase]
 
@@ -144,14 +177,27 @@ export default function BattleScreen({ match, roundTime, onBattleEnd }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-6 gap-8 relative">
-      <button
-        type="button"
-        onClick={toggleMute}
-        className="absolute top-4 right-4 p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
-        aria-label={soundMuted ? 'Activar sonido' : 'Silenciar'}
-      >
-        {soundMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-      </button>
+
+      {/* Top row: back + mute */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold transition-colors"
+        >
+          <ChevronLeft size={16} />
+          Regresar
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleMute}
+          className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+          aria-label={soundMuted ? 'Activar sonido' : 'Silenciar'}
+        >
+          {soundMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
+      </div>
 
       <div className="text-center space-y-1">
         <h2 className="text-2xl font-black">
@@ -166,9 +212,11 @@ export default function BattleScreen({ match, roundTime, onBattleEnd }) {
         <TimerDisplay
           seconds={timeLeft}
           total={roundTime}
+          paused={paused}
         />
       )}
 
+      {/* Start button (ready states) */}
       {showPlay && (
         <button
           type="button"
@@ -180,7 +228,27 @@ export default function BattleScreen({ match, roundTime, onBattleEnd }) {
         </button>
       )}
 
-      {(phase === PHASE.ROUND1_RUNNING || phase === PHASE.ROUND2_RUNNING) && (
+      {/* Pause / Resume button (running states) */}
+      {isRunning && (
+        <button
+          type="button"
+          onClick={handlePauseResume}
+          className={`flex items-center gap-3 active:scale-95 px-10 py-4 rounded-2xl font-black text-xl transition-all ${
+            paused
+              ? 'bg-green-600 hover:bg-green-500'
+              : 'bg-zinc-700 hover:bg-zinc-600'
+          }`}
+        >
+          {paused ? (
+            <><Play size={24} fill="white" /> REANUDAR</>
+          ) : (
+            <><Pause size={24} fill="white" /> PAUSAR</>
+          )}
+        </button>
+      )}
+
+      {/* Bouncing dots when running */}
+      {isRunning && !paused && (
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <span

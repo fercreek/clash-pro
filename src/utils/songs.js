@@ -19,12 +19,16 @@ export const PLAYLISTS = [
     ],
   },
   {
-    id: 'williams-fuego',
-    name: 'Williams Fuego',
+    id: 'salsanama-training',
+    name: 'Salsanama Training 2026',
     uri: 'spotify:playlist:7prxrpTaqFEDleRHrT7wbR',
-    tracks: [
-      // Agrega tracks individuales aquí
-    ],
+    tracks: [],
+  },
+  {
+    id: 'salsanama-turkey',
+    name: 'A MI MANERA | TURKEY 25-26',
+    uri: 'spotify:playlist:7legD3mxgnZxL3sEMtxNsv',
+    tracks: [],
   },
   {
     id: 'salsanama-2020',
