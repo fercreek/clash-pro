@@ -36,8 +36,12 @@ El valor está en el piso de baile:
 | Rondas | Round Robin estándar |
 | Spotify | playlists del sistema |
 
-### Pro — $5 USD/mes o $40 USD/año
+### Pro — $99 MXN/mes · $799 MXN/año (~$5 USD/mes)
 > Para instructores y grupos que usan la app regularmente.
+
+**¿Por qué $99 MXN?**
+Es menos que 2 cafés en Starbucks. Un instructor que da clase cada jueves recupera ese valor
+en la primera sesión por el tiempo que ahorra armando el bracket.
 
 | Feature | Descripción |
 |---------|-------------|
@@ -48,7 +52,7 @@ El valor está en el piso de baile:
 | Spotify personal | conectar cuenta Spotify para usar tus propias playlists |
 | Sin branding de ClashPro | en pantalla compartida/proyectada |
 
-### Evento — $10 USD por evento (pago único)
+### Evento — $199 MXN por evento (~$10 USD, pago único)
 > Para quien organiza una competencia pública o festival y solo lo usa de vez en cuando.
 
 | Feature | Descripción |
@@ -77,19 +81,19 @@ El valor está en el piso de baile:
 ## Proyecciones realistas
 
 ### 6 meses (boca a boca, comunidad Salsanamá)
-- 15 usuarios Pro × $5 = **$75/mes**
-- 3–5 eventos/mes × $10 = **$30–50/mes**
-- Total: **~$100–125/mes**
+- 15 usuarios Pro × $99 MXN = **$1,485 MXN/mes**
+- 3–5 eventos × $199 MXN = **$600–1,000 MXN/mes**
+- Total: **~$2,000–2,500 MXN/mes**
 
 ### 12 meses (grupos de salsa LATAM + España)
-- 80 usuarios Pro × $5 = **$400/mes**
-- 15 eventos/mes × $10 = **$150/mes**
-- Total: **~$550/mes**
+- 80 usuarios Pro × $99 MXN = **$7,920 MXN/mes**
+- 15 eventos × $199 MXN = **$2,985 MXN/mes**
+- Total: **~$10,000–11,000 MXN/mes**
 
-### Optimista (comunidad internacional)
-- 300 usuarios Pro = **$1,500/mes**
-- 40 eventos/mes = **$400/mes**
-- Total: **~$1,900/mes**
+### Optimista (comunidad internacional, precio en USD para no-MX)
+- 300 usuarios Pro ($5 USD) = **~$90,000 MXN/mes**
+- 40 eventos ($10 USD) = **~$16,000 MXN/mes**
+- Total: **~$100,000 MXN/mes**
 
 > No es un negocio de millones, pero puede pagar el hosting y dar un ingreso pasivo real si la comunidad lo adopta.
 

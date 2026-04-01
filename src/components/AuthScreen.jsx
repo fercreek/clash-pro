@@ -260,6 +260,16 @@ export default function AuthScreen({ onEmailSignIn, onEmailSignUp }) {
         <p className="text-zinc-700 text-xs text-center">
           Made with 🔥 & ❤️ for Salsanamá
         </p>
+        <p className="text-zinc-700 text-xs text-center">
+          ¿Problemas?{' '}
+          <a href="mailto:fercreek@gmail.com" className="text-zinc-500 hover:text-zinc-300 transition-colors">
+            fercreek@gmail.com
+          </a>
+          {' · '}
+          <a href="https://wa.me/528117655605" target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-zinc-300 transition-colors">
+            WhatsApp
+          </a>
+        </p>
       </footer>
     </div>
   )
