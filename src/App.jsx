@@ -9,6 +9,7 @@ import HamburgerMenu from './components/HamburgerMenu'
 import { generateRoundRobin } from './utils/roundRobin'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
 import { useAuth } from './hooks/useAuth'
+import { usePlan } from './hooks/usePlan'
 import { supabase } from './lib/supabase'
 import { useTournamentPersistence } from './hooks/useTournamentState'
 import { Menu } from 'lucide-react'
@@ -36,8 +37,10 @@ function computeBootState() {
 }
 
 export default function App() {
-  const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
-  const [menuOpen, setMenuOpen]     = useState(false)
+  const { user, profile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
+  const { planLabel, isPro } = usePlan()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [navImgBroken, setNavImgBroken] = useState(false)
   const [nowPlaying, setNowPlaying] = useState(null)
   const spotifyRef                  = useRef(null)
   const [boot] = useState(computeBootState)
@@ -106,6 +109,10 @@ export default function App() {
     saveState({ screen, competitors, roundTime, matches, activeMatchId })
   }, [screen, competitors, roundTime, matches, activeMatchId])
 
+  useEffect(() => {
+    setNavImgBroken(false)
+  }, [profile?.photo_url])
+
   // ── Setup → Matches ─────────────────────────────────────────────────────────
   const handleStartTournament = useCallback((finalCompetitors, selectedTime) => {
     const generated = generateRoundRobin(finalCompetitors)
@@ -172,6 +179,9 @@ export default function App() {
   const nonByeMatches = matches.filter((m) => !m.isBye)
   const activeMatchIndex = activeMatch ? nonByeMatches.findIndex((m) => m.id === activeMatch.id) : -1
 
+  const navName = profile?.name ?? user?.email?.split('@')[0] ?? ''
+  const navInitials = (navName.slice(0, 2).toUpperCase() || 'CP')
+
   // Pantalla de carga inicial
   if (authLoading) {
     return (
@@ -191,15 +201,40 @@ export default function App() {
       {/* Player de Spotify persistente — no se desmonta al cambiar pantalla */}
       <SpotifyPlayer ref={spotifyRef} onTrackChange={setNowPlaying} />
 
-      {/* Barra de menú */}
-      <div className="flex items-center justify-end px-3 py-1.5 border-b border-zinc-800/60 shrink-0">
-        <button
-          onClick={() => setMenuOpen(true)}
-          className="text-zinc-500 hover:text-white p-1.5 rounded-lg transition-colors"
-          aria-label="Menú"
-        >
-          <Menu size={18} />
-        </button>
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-zinc-800/60 shrink-0">
+        <span className="text-sm font-black tracking-tight text-white truncate min-w-0">
+          CLASH<span className="text-red-500">PRO</span>
+        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+              isPro ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-500'
+            }`}
+            title="Tu plan"
+          >
+            {planLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="flex items-center gap-2 text-zinc-500 hover:text-white p-1 rounded-lg transition-colors"
+            aria-label="Abrir menú"
+          >
+            {profile?.photo_url && !navImgBroken ? (
+              <img
+                src={profile.photo_url}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover ring-1 ring-zinc-700"
+                onError={() => setNavImgBroken(true)}
+              />
+            ) : (
+              <span className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-[10px] font-bold ring-1 ring-zinc-700">
+                {navInitials}
+              </span>
+            )}
+            <Menu size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Menú lateral */}
