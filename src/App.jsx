@@ -9,6 +9,7 @@ import { generateRoundRobin } from './utils/roundRobin'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
 import { useAuth } from './hooks/useAuth'
 import { supabase } from './lib/supabase'
+import { useTournamentPersistence } from './hooks/useTournamentState'
 
 const SCREENS = {
   SETUP: 'setup',
@@ -60,6 +61,27 @@ export default function App() {
     window.addEventListener('popstate', handlePop)
     return () => window.removeEventListener('popstate', handlePop)
   }, [])
+
+  // ── Persistencia de torneo por usuario en Supabase ────────────────────────
+  const { save: saveTournament, clearRemote } = useTournamentPersistence({
+    user,
+    onLoaded: ({ competitors, matches, roundTime, screen: s, activeMatchId }) => {
+      // Solo restaurar si hay un torneo activo guardado (con matches)
+      if (matches?.length) {
+        const norm = normalizeHydratedScreen(s, activeMatchId)
+        setCompetitors(competitors)
+        setMatches(matches)
+        setRoundTime(roundTime)
+        setScreen(norm.screen)
+        setActiveMatchId(norm.activeMatchId)
+      }
+    },
+  })
+
+  // Guardar en Supabase cada vez que cambia el estado relevante
+  useEffect(() => {
+    saveTournament({ competitors, matches, roundTime, screen, activeMatchId })
+  }, [competitors, matches, roundTime, screen, activeMatchId]) // eslint-disable-line
 
   // Carga competidores activos desde Supabase cuando el usuario se autentica
   useEffect(() => {
@@ -127,10 +149,11 @@ export default function App() {
   // ── Reset completo ────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
     clearState()
+    clearRemote()
     setMatches([])
     setActiveMatchId(null)
     goTo(SCREENS.SETUP)
-  }, [goTo])
+  }, [goTo, clearRemote])
 
   const activeMatch = matches.find((m) => m.id === activeMatchId) ?? null
 
