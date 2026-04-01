@@ -60,3 +60,59 @@ export function calculateScores(competitors, matches) {
     .map(([name, points]) => ({ name, points }))
     .sort((a, b) => b.points - a.points)
 }
+
+/**
+ * Calcula estadísticas extendidas por competidor.
+ * Retorna array de { name, wins, losses, draws, played, winRate, currentStreak }
+ * currentStreak: positivo = racha de victorias, negativo = racha de derrotas
+ */
+export function computeExtendedStats(competitors, matches) {
+  const stats = Object.fromEntries(
+    competitors.map((c) => [c, { name: c, wins: 0, losses: 0, draws: 0, played: 0 }])
+  )
+
+  const completedByPlayer = {}
+  for (const c of competitors) completedByPlayer[c] = []
+
+  for (const m of matches) {
+    if (!m.completed || m.isBye) continue
+    completedByPlayer[m.playerA]?.push(m)
+    completedByPlayer[m.playerB]?.push(m)
+
+    if (m.result === 'A') {
+      if (stats[m.playerA]) { stats[m.playerA].wins++; stats[m.playerA].played++ }
+      if (stats[m.playerB]) { stats[m.playerB].losses++; stats[m.playerB].played++ }
+    } else if (m.result === 'B') {
+      if (stats[m.playerB]) { stats[m.playerB].wins++; stats[m.playerB].played++ }
+      if (stats[m.playerA]) { stats[m.playerA].losses++; stats[m.playerA].played++ }
+    } else if (m.result === 'draw') {
+      if (stats[m.playerA]) { stats[m.playerA].draws++; stats[m.playerA].played++ }
+      if (stats[m.playerB]) { stats[m.playerB].draws++; stats[m.playerB].played++ }
+    }
+  }
+
+  for (const c of competitors) {
+    const s = stats[c]
+    s.winRate = s.played > 0 ? Math.round((s.wins / s.played) * 100) : 0
+
+    const history = completedByPlayer[c]
+    let streak = 0
+    for (let i = history.length - 1; i >= 0; i--) {
+      const m = history[i]
+      const won  = (m.result === 'A' && m.playerA === c) || (m.result === 'B' && m.playerB === c)
+      const lost = (m.result === 'A' && m.playerB === c) || (m.result === 'B' && m.playerA === c)
+      if (i === history.length - 1) {
+        if (won) streak = 1
+        else if (lost) streak = -1
+        else break
+      } else {
+        if (streak > 0 && won) streak++
+        else if (streak < 0 && lost) streak--
+        else break
+      }
+    }
+    s.currentStreak = streak
+  }
+
+  return competitors.map((c) => stats[c])
+}

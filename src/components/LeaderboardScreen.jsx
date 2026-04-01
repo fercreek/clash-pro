@@ -1,6 +1,21 @@
-import { useMemo, useCallback, useState } from 'react'
-import { Trophy, Medal, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle } from 'lucide-react'
-import { calculateScores } from '../utils/roundRobin'
+import { useMemo, useCallback, useState, useEffect } from 'react'
+import { Trophy, Medal, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw } from 'lucide-react'
+import confetti from 'canvas-confetti'
+import { calculateScores, computeExtendedStats } from '../utils/roundRobin'
+
+function buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches, isFinished) {
+  const lines = ['🏆 ClashPro — Resultado de hoy', '']
+  leaderboard.forEach((e, i) => {
+    const s = extStats.find((x) => x.name === e.name)
+    const detail = s ? `(${s.wins}V ${s.losses}D)` : ''
+    lines.push(`${i + 1}. ${e.name} — ${e.points} pts ${detail}`.trim())
+  })
+  if (isFinished && leaderboard.length > 0) {
+    lines.push('', `🥇 Campeón: ${leaderboard[0].name}`)
+  }
+  lines.push('', 'clash-pro.vercel.app')
+  return lines.join('\n')
+}
 
 function buildShareText(leaderboard, completedMatches, totalMatches, isFinished) {
   const lines = ['ClashPro — Ranking', '', `Batallas: ${completedMatches}/${totalMatches}`, '']
@@ -19,22 +34,36 @@ const RANK_STYLES = [
   { bg: 'bg-orange-800/20 border-orange-700', text: 'text-orange-500', icon: Medal },
 ]
 
-function ScoreRow({ entry, rank }) {
+function ScoreRow({ entry, rank, stat }) {
   const style = RANK_STYLES[rank] ?? {
     bg: 'bg-zinc-800/50 border-zinc-800',
     text: 'text-zinc-400',
   }
   const Icon = style.icon
 
+  const streakLabel = stat?.currentStreak
+    ? stat.currentStreak > 0
+      ? `Racha: ${stat.currentStreak}🔥`
+      : `Racha: ${Math.abs(stat.currentStreak)}↓`
+    : null
+
   return (
-    <div
-      className={`flex items-center gap-4 border rounded-xl px-4 py-3 ${style.bg}`}
-    >
+    <div className={`flex items-center gap-4 border rounded-xl px-4 py-3 ${style.bg}`}>
       <span className={`text-2xl font-black w-8 text-center ${style.text}`}>
         {rank + 1}
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-white font-bold truncate">{entry.name}</p>
+        {stat && stat.played > 0 && (
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {stat.wins}V · {stat.losses}D · {stat.draws}E
+            {streakLabel && (
+              <span className={stat.currentStreak > 0 ? ' text-green-400' : ''}>
+                {' · '}{streakLabel}
+              </span>
+            )}
+          </p>
+        )}
       </div>
       <div className={`flex items-center gap-1 font-black text-xl ${style.text}`}>
         {Icon && rank < 3 && <Icon size={16} />}
@@ -45,7 +74,7 @@ function ScoreRow({ entry, rank }) {
   )
 }
 
-export default function LeaderboardScreen({ competitors, matches, onBack, onReset }) {
+export default function LeaderboardScreen({ competitors, matches, onBack, onReset, onNewSession }) {
   const [copyDone, setCopyDone] = useState(false)
 
   const leaderboard = useMemo(
@@ -53,13 +82,34 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
     [competitors, matches]
   )
 
+  const extStats = useMemo(
+    () => computeExtendedStats(competitors, matches),
+    [competitors, matches]
+  )
+
   const totalMatches = matches.filter((m) => !m.isBye).length
   const completedMatches = matches.filter((m) => m.completed && !m.isBye).length
-  const isFinished = totalMatches === completedMatches
+  const isFinished = totalMatches === completedMatches && totalMatches > 0
+
+  useEffect(() => {
+    if (completedMatches > 0) {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#ef4444', '#f97316', '#ffffff', '#fbbf24'],
+      })
+    }
+  }, []) // eslint-disable-line
 
   const shareText = useMemo(
     () => buildShareText(leaderboard, completedMatches, totalMatches, isFinished),
     [leaderboard, completedMatches, totalMatches, isFinished]
+  )
+
+  const whatsappText = useMemo(
+    () => buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches, isFinished),
+    [leaderboard, extStats, completedMatches, totalMatches, isFinished]
   )
 
   const handleShare = useCallback(async () => {
@@ -71,8 +121,8 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
         if (e?.name === 'AbortError') return
       }
     }
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer')
-  }, [shareText])
+    window.open(`https://wa.me/?text=${encodeURIComponent(whatsappText)}`, '_blank', 'noopener,noreferrer')
+  }, [shareText, whatsappText])
 
   const handleCopy = useCallback(async () => {
     try {
@@ -81,6 +131,10 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
       setTimeout(() => setCopyDone(false), 2000)
     } catch {}
   }, [shareText])
+
+  const handleWhatsApp = useCallback(() => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(whatsappText)}`, '_blank', 'noopener,noreferrer')
+  }, [whatsappText])
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-5">
@@ -109,9 +163,7 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
           </button>
           <button
             type="button"
-            onClick={() =>
-              window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer')
-            }
+            onClick={handleWhatsApp}
             className="flex items-center gap-1.5 bg-zinc-800 hover:bg-green-900/40 px-3 py-2 rounded-lg text-sm transition-colors"
             title="WhatsApp"
           >
@@ -126,16 +178,6 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
             <Copy size={14} />
             {copyDone && <span className="text-xs text-green-400">OK</span>}
           </button>
-          {isFinished && (
-            <button
-              type="button"
-              onClick={onReset}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-sm transition-colors"
-            >
-              <RotateCcw size={14} />
-              Nuevo torneo
-            </button>
-          )}
         </div>
       </div>
 
@@ -154,9 +196,38 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
       {/* Rankings */}
       <section className="space-y-2">
         {leaderboard.map((entry, i) => (
-          <ScoreRow key={entry.name} entry={entry} rank={i} />
+          <ScoreRow
+            key={entry.name}
+            entry={entry}
+            rank={i}
+            stat={extStats.find((s) => s.name === entry.name)}
+          />
         ))}
       </section>
+
+      {/* Acciones finales */}
+      {isFinished && (
+        <div className="flex gap-3 pt-2">
+          {onNewSession && (
+            <button
+              type="button"
+              onClick={onNewSession}
+              className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
+            >
+              <RefreshCw size={15} />
+              Nueva sesión
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
+          >
+            <RotateCcw size={15} />
+            Nuevo torneo
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -61,7 +61,7 @@ function TimerCircle({ seconds, total, paused, onClick }) {
   )
 }
 
-export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel, nowPlaying, onNextSong, onRoundStart }) {
+export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel, nowPlaying, onNextSong, onRoundStart, matchNumber, totalMatches }) {
   const [phase, setPhase]         = useState(PHASE.ROUND1_READY)
   const [timeLeft, setTimeLeft]   = useState(roundTime)
   const [paused, setPaused]       = useState(false)
@@ -187,6 +187,11 @@ export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel, 
 
       {/* Nombres */}
       <div className="text-center space-y-1 mt-2">
+        {matchNumber != null && totalMatches != null && (
+          <p className="text-zinc-500 text-xs font-semibold">
+            Batalla {matchNumber}/{totalMatches}
+          </p>
+        )}
         <h2 className="text-2xl font-black">
           {match.playerA}{' '}
           <span className="text-red-500 text-xl">VS</span>{' '}

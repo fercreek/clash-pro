@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Plus, Trash2, Swords, Clock } from 'lucide-react'
+import { Plus, Trash2, Swords, Clock, Lock } from 'lucide-react'
+import { usePlan } from '../hooks/usePlan'
 
 export default function SetupScreen({ initialCompetitors, initialRoundTime, onStart }) {
+  const { isFree, maxCompetitors } = usePlan()
   const [competitors, setCompetitors] = useState(initialCompetitors)
   const [inputValue, setInputValue] = useState('')
   const [roundTime, setRoundTime] = useState(initialRoundTime)
@@ -21,6 +23,7 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
     if (e.key === 'Enter') handleAdd()
   }
 
+  const atLimit = isFree && competitors.length >= maxCompetitors
   const canStart = competitors.length >= 2
 
   return (
@@ -69,16 +72,27 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Nombre del bailarín..."
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+            disabled={atLimit}
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 disabled:opacity-40"
           />
           <button
             onClick={handleAdd}
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || atLimit}
             className="bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed p-2 rounded-lg transition-colors"
           >
             <Plus size={20} />
           </button>
         </div>
+
+        {atLimit && (
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5">
+            <Lock size={14} className="text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-amber-300 text-xs">
+              Límite del plan Gratis ({maxCompetitors} competidores).{' '}
+              <span className="font-semibold">Activa Pro para torneos ilimitados.</span>
+            </p>
+          </div>
+        )}
 
         {/* Competitor List */}
         <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">

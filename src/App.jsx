@@ -160,7 +160,17 @@ export default function App() {
     goTo(SCREENS.SETUP)
   }, [goTo, clearRemote])
 
+  // ── Nueva sesión (mismos competidores, resetea matches) ────────────────────
+  const handleNewSession = useCallback(() => {
+    const generated = generateRoundRobin(competitors)
+    setMatches(generated)
+    setActiveMatchId(null)
+    goTo(SCREENS.MATCHES)
+  }, [competitors, goTo])
+
   const activeMatch = matches.find((m) => m.id === activeMatchId) ?? null
+  const nonByeMatches = matches.filter((m) => !m.isBye)
+  const activeMatchIndex = activeMatch ? nonByeMatches.findIndex((m) => m.id === activeMatch.id) : -1
 
   // Pantalla de carga inicial
   if (authLoading) {
@@ -225,6 +235,8 @@ export default function App() {
             nowPlaying={nowPlaying}
             onRoundStart={() => spotifyRef.current?.playNextInQueue()}
             onNextSong={() => spotifyRef.current?.playNextInQueue()}
+            matchNumber={activeMatchIndex >= 0 ? activeMatchIndex + 1 : undefined}
+            totalMatches={nonByeMatches.length}
           />
         )}
 
@@ -234,6 +246,7 @@ export default function App() {
             matches={matches}
             onBack={handleBackToMatches}
             onReset={handleReset}
+            onNewSession={handleNewSession}
           />
         )}
       </main>
