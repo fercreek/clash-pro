@@ -41,6 +41,26 @@ export default function App() {
   const [matches, setMatches] = useState(boot.matches)
   const [activeMatchId, setActiveMatchId] = useState(boot.activeMatchId)
 
+  // Helper: navegar con pushState para que el back button del teléfono funcione
+  const goTo = useCallback((nextScreen, opts = {}) => {
+    window.history.pushState({ screen: nextScreen, ...opts }, '')
+    setScreen(nextScreen)
+  }, [])
+
+  // Escuchar botón físico de regreso (Android / iOS swipe back / browser back)
+  useEffect(() => {
+    const handlePop = () => {
+      setScreen((cur) => {
+        if (cur === SCREENS.BATTLE) { setActiveMatchId(null); return SCREENS.MATCHES }
+        if (cur === SCREENS.LEADERBOARD) return SCREENS.MATCHES
+        if (cur === SCREENS.MATCHES) return SCREENS.SETUP
+        return cur
+      })
+    }
+    window.addEventListener('popstate', handlePop)
+    return () => window.removeEventListener('popstate', handlePop)
+  }, [])
+
   // Carga competidores activos desde Supabase cuando el usuario se autentica
   useEffect(() => {
     if (!user) return
@@ -65,14 +85,14 @@ export default function App() {
     setCompetitors(finalCompetitors)
     setRoundTime(selectedTime)
     setMatches(generated)
-    setScreen(SCREENS.MATCHES)
-  }, [])
+    goTo(SCREENS.MATCHES)
+  }, [goTo])
 
   // ── Matches → Battle ─────────────────────────────────────────────────────────
   const handleStartBattle = useCallback((matchId) => {
     setActiveMatchId(matchId)
-    setScreen(SCREENS.BATTLE)
-  }, [])
+    goTo(SCREENS.BATTLE)
+  }, [goTo])
 
   // ── Battle → Matches (con resultado) ─────────────────────────────────────────
   const handleBattleEnd = useCallback((matchId, result) => {
@@ -82,26 +102,26 @@ export default function App() {
       )
     )
     setActiveMatchId(null)
-    setScreen(SCREENS.MATCHES)
-  }, [])
+    goTo(SCREENS.MATCHES)
+  }, [goTo])
 
   // ── Matches → Leaderboard ────────────────────────────────────────────────────
   const handleViewLeaderboard = useCallback(() => {
-    setScreen(SCREENS.LEADERBOARD)
-  }, [])
+    goTo(SCREENS.LEADERBOARD)
+  }, [goTo])
 
   // ── Leaderboard → Matches ────────────────────────────────────────────────────
   const handleBackToMatches = useCallback(() => {
-    setScreen(SCREENS.MATCHES)
-  }, [])
+    goTo(SCREENS.MATCHES)
+  }, [goTo])
 
   // ── Reset completo ────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
     clearState()
     setMatches([])
     setActiveMatchId(null)
-    setScreen(SCREENS.SETUP)
-  }, [])
+    goTo(SCREENS.SETUP)
+  }, [goTo])
 
   const activeMatch = matches.find((m) => m.id === activeMatchId) ?? null
 
@@ -149,7 +169,7 @@ export default function App() {
             match={activeMatch}
             roundTime={roundTime}
             onBattleEnd={handleBattleEnd}
-            onCancel={() => { setActiveMatchId(null); setScreen(SCREENS.MATCHES) }}
+            onCancel={() => { setActiveMatchId(null); goTo(SCREENS.MATCHES) }}
           />
         )}
 
