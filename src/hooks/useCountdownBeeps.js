@@ -59,7 +59,28 @@ export function useCountdownBeeps({
     }
   }, [timeLeft, isCountingDown, muted, playBeep])
 
-  return { unlock, playBeep, ensureCtx }
+  // Campana de ring de boxeo: 3 dings rápidos
+  const playBell = useCallback(() => {
+    if (muted) return
+    const ctx = ensureCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    ;[0, 0.18, 0.38].forEach((delay) => {
+      const osc  = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 1100
+      osc.type = 'triangle'
+      const t = ctx.currentTime + delay
+      gain.gain.setValueAtTime(0.35, t)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55)
+      osc.start(t)
+      osc.stop(t + 0.6)
+    })
+  }, [ensureCtx, muted])
+
+  return { unlock, playBeep, playBell, ensureCtx }
 }
 
 export function loadSoundMuted() {

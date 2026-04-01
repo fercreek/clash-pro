@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import SetupScreen from './components/SetupScreen'
 import MatchesScreen from './components/MatchesScreen'
 import BattleScreen from './components/BattleScreen'
@@ -37,7 +37,9 @@ function computeBootState() {
 
 export default function App() {
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen]     = useState(false)
+  const [nowPlaying, setNowPlaying] = useState(null)
+  const spotifyRef                  = useRef(null)
   const [boot] = useState(computeBootState)
   const [screen, setScreen] = useState(boot.screen)
   const [competitors, setCompetitors] = useState(boot.competitors)
@@ -177,7 +179,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-full bg-zinc-950 text-white">
       {/* Player de Spotify persistente — no se desmonta al cambiar pantalla */}
-      <SpotifyPlayer />
+      <SpotifyPlayer ref={spotifyRef} onTrackChange={setNowPlaying} />
 
       {/* Barra de menú */}
       <div className="flex items-center justify-end px-3 py-1.5 border-b border-zinc-800/60 shrink-0">
@@ -220,6 +222,9 @@ export default function App() {
             roundTime={roundTime}
             onBattleEnd={handleBattleEnd}
             onCancel={() => { setActiveMatchId(null); goTo(SCREENS.MATCHES) }}
+            nowPlaying={nowPlaying}
+            onRoundStart={() => spotifyRef.current?.playNextInQueue()}
+            onNextSong={() => spotifyRef.current?.playNextInQueue()}
           />
         )}
 

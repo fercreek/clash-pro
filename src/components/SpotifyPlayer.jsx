@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { forwardRef, useImperativeHandle, useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import {
   ListMusic, X, Play, Plus, Trash2,
-  ChevronLeft, ChevronRight, Music2, Loader2,
+  ChevronLeft, ChevronRight, Music2, Loader2, ListOrdered,
 } from 'lucide-react'
 import { PLAYLISTS } from '../utils/songs'
 import {
@@ -12,9 +12,8 @@ import {
   removeCustomTrack,
 } from '../utils/spotifyUri'
 import { useSpotifyAuth } from '../hooks/useSpotifyAuth'
-import { getMyPlaylists, getPlaylistTracks, trackDisplayName, msToMin } from '../lib/spotifyApi'
+import { getMyPlaylists, getPlaylistTracks, msToMin } from '../lib/spotifyApi'
 
-// ── Merge hardcoded + custom tracks ──────────────────────────────────────────
 function mergePlaylistTracks(pl, customMap) {
   const base = pl.tracks || []
   const extra = customMap[pl.id] || []
@@ -31,7 +30,6 @@ function mergePlaylistTracks(pl, customMap) {
   return out
 }
 
-// ── SpotifyIcon ───────────────────────────────────────────────────────────────
 function SpotifyIcon({ size = 14, className = '' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -40,33 +38,35 @@ function SpotifyIcon({ size = 14, className = '' }) {
   )
 }
 
-export default function SpotifyPlayer() {
+const SpotifyPlayer = forwardRef(function SpotifyPlayer({ onTrackChange }, ref) {
   const controllerRef = useRef(null)
   const [showPicker, setShowPicker] = useState(false)
-  const [pickerTab, setPickerTab] = useState('local') // 'local' | 'spotify'
+  const [pickerTab, setPickerTab] = useState('local') // 'local' | 'spotify' | 'queue'
   const [activePlaylistId, setActivePlaylistId] = useState(PLAYLISTS[0].id)
   const [currentUri, setCurrentUri] = useState(null)
   const [customMap, setCustomMap] = useState(loadCustomTracksMap)
 
-  // Add-track form (local)
-  const [addName, setAddName] = useState('')
-  const [addArtist, setAddArtist] = useState('')
-  const [addLink, setAddLink] = useState('')
-  const [addError, setAddError] = useState('')
+  // Cola de canciones
+  const [queue, setQueue] = useState([]) // [{uri, name, artist, source}]
 
-  // Spotify API state
+  // Add-track form
+  const [addName, setAddName]     = useState('')
+  const [addArtist, setAddArtist] = useState('')
+  const [addLink, setAddLink]     = useState('')
+  const [addError, setAddError]   = useState('')
+
+  // Spotify API
   const { spUser, spLoading, connectSpotify, disconnectSpotify, spConnected } = useSpotifyAuth()
-  const [spPlaylists, setSpPlaylists] = useState([])
+  const [spPlaylists, setSpPlaylists]             = useState([])
   const [spPlaylistsLoading, setSpPlaylistsLoading] = useState(false)
   const [activeSpPlaylistId, setActiveSpPlaylistId] = useState(null)
-  const [spTracks, setSpTracks] = useState([])
-  const [spTracksLoading, setSpTracksLoading] = useState(false)
+  const [spTracks, setSpTracks]                   = useState([])
+  const [spTracksLoading, setSpTracksLoading]     = useState(false)
 
-  // ── Local playlist logic ──────────────────────────────────────────────────
   const activePlaylist = PLAYLISTS.find((p) => p.id === activePlaylistId) ?? PLAYLISTS[0]
   const mergedTracks = useMemo(
     () => mergePlaylistTracks(activePlaylist, customMap),
-    [activePlaylist, activePlaylistId, customMap]
+    [activePlaylist, activePlaylistId, customMap] // eslint-disable-line
   )
   const trackIndex = useMemo(() => {
     if (!currentUri) return -1
@@ -79,7 +79,6 @@ export default function SpotifyPlayer() {
     if (currentUri === activePlaylist.uri) return { title: activePlaylist.name, subtitle: 'Playlist completa' }
     const t = mergedTracks.find((x) => x.uri === currentUri)
     if (t) return { title: t.name, subtitle: `${activePlaylist.name} · ${t.artist || ''}` }
-    // Check Spotify tracks
     const st = spTracks.find((x) => x.uri === currentUri)
     if (st) {
       const spPl = spPlaylists.find((p) => p.id === activeSpPlaylistId)
@@ -88,7 +87,16 @@ export default function SpotifyPlayer() {
     return { title: 'Reproduciendo…', subtitle: '' }
   }, [currentUri, activePlaylist, mergedTracks, spTracks, spPlaylists, activeSpPlaylistId])
 
-  // ── Spotify iframe init ───────────────────────────────────────────────────
+  // ── Notificar al padre cuando cambia la canción ───────────────────────────
+  const prevUriRef = useRef(null)
+  useEffect(() => {
+    if (currentUri !== prevUriRef.current) {
+      prevUriRef.current = currentUri
+      onTrackChange?.(nowPlaying)
+    }
+  }, [currentUri]) // eslint-disable-line
+
+  // ── Spotify iframe ────────────────────────────────────────────────────────
   useEffect(() => {
     window.onSpotifyIframeApiReady = (IFrameAPI) => {
       const element = document.getElementById('spotify-embed-target')
@@ -114,7 +122,33 @@ export default function SpotifyPlayer() {
     setCurrentUri(uri)
   }, [])
 
-  // ── Load Spotify playlists when connected ─────────────────────────────────
+  // ── Cola: exponer playNextInQueue vía ref ─────────────────────────────────
+  useImperativeHandle(ref, () => ({
+    playNextInQueue: () => {
+      setQueue((q) => {
+        if (q.length === 0) return q
+        const [next, ...rest] = q
+        load(next.uri)
+        return rest
+      })
+    },
+  }), [load])
+
+  // ── Agregar a la cola ─────────────────────────────────────────────────────
+  const addToQueue = useCallback((track) => {
+    setQueue((q) => {
+      if (q.some((x) => x.uri === track.uri)) return q // evitar duplicados
+      return [...q, { uri: track.uri, name: track.name, artist: track.artist || track.artists?.[0]?.name || '' }]
+    })
+  }, [])
+
+  const removeFromQueue = useCallback((index) => {
+    setQueue((q) => q.filter((_, i) => i !== index))
+  }, [])
+
+  const clearQueue = useCallback(() => setQueue([]), [])
+
+  // ── Spotify API playlists ─────────────────────────────────────────────────
   useEffect(() => {
     if (!spConnected) { setSpPlaylists([]); return }
     setSpPlaylistsLoading(true)
@@ -124,27 +158,18 @@ export default function SpotifyPlayer() {
       .finally(() => setSpPlaylistsLoading(false))
   }, [spConnected])
 
-  // ── Load tracks when Spotify playlist selected ────────────────────────────
   const handleSpPlaylistPick = useCallback(async (pl) => {
     setActiveSpPlaylistId(pl.id)
     setSpTracks([])
     setSpTracksLoading(true)
-    try {
-      const tracks = await getPlaylistTracks(pl.id, 50)
-      setSpTracks(tracks)
-    } catch (e) { console.error(e) }
+    try { const tracks = await getPlaylistTracks(pl.id, 50); setSpTracks(tracks) }
+    catch (e) { console.error(e) }
     finally { setSpTracksLoading(false) }
   }, [])
 
-  // ── Local playlist handlers ───────────────────────────────────────────────
-  const handlePlaylistPick = useCallback((pl) => {
-    setActivePlaylistId(pl.id)
-    load(pl.uri)
-  }, [load])
-
-  const handlePlayThisPlaylist = useCallback(() => load(activePlaylist.uri), [activePlaylist.uri, load])
-
-  const handlePlayTrack = useCallback((track) => load(track.uri), [load])
+  const handlePlaylistPick  = useCallback((pl) => { setActivePlaylistId(pl.id); load(pl.uri) }, [load])
+  const handlePlayWholeList = useCallback(() => load(activePlaylist.uri), [activePlaylist.uri, load])
+  const handlePlayTrack     = useCallback((track) => load(track.uri), [load])
 
   const goPrev = useCallback(() => {
     if (mergedTracks.length === 0) return
@@ -153,11 +178,15 @@ export default function SpotifyPlayer() {
   }, [isPlaylistMode, load, mergedTracks, trackIndex])
 
   const goNext = useCallback(() => {
+    if (queue.length > 0) {
+      setQueue((q) => { const [next, ...rest] = q; load(next.uri); return rest })
+      return
+    }
     if (mergedTracks.length === 0) return
     if (isPlaylistMode || trackIndex < 0) { load(mergedTracks[0].uri); return }
     if (trackIndex >= mergedTracks.length - 1) { load(mergedTracks[0].uri); return }
     load(mergedTracks[trackIndex + 1].uri)
-  }, [isPlaylistMode, load, mergedTracks, trackIndex])
+  }, [queue, isPlaylistMode, load, mergedTracks, trackIndex])
 
   const handleAddTrack = (e) => {
     e.preventDefault(); setAddError('')
@@ -184,16 +213,15 @@ export default function SpotifyPlayer() {
 
   return (
     <div className="relative w-full bg-zinc-900 border-b border-zinc-800 shrink-0">
-      {/* Iframe Spotify */}
       <div id="spotify-embed-target" />
 
-      {/* Control bar */}
+      {/* Barra de control */}
       <div className="flex items-center gap-1 px-2 h-9 border-t border-zinc-800">
         <button type="button" disabled={!canStep} onClick={goPrev}
           className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 transition-colors shrink-0">
           <ChevronLeft size={16} />
         </button>
-        <button type="button" disabled={!canStep} onClick={goNext}
+        <button type="button" onClick={goNext}
           className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 transition-colors shrink-0">
           <ChevronRight size={16} />
         </button>
@@ -203,10 +231,20 @@ export default function SpotifyPlayer() {
           <p className="text-[10px] text-zinc-500 truncate leading-tight">{nowPlaying.subtitle}</p>
         </div>
 
-        {/* Spotify connect pill */}
+        {/* Badge de cola */}
+        {queue.length > 0 && (
+          <button type="button"
+            onClick={() => { setPickerTab('queue'); setShowPicker(true) }}
+            className="flex items-center gap-1 px-1.5 py-1 rounded-md bg-red-500/20 text-red-400 text-[10px] font-bold shrink-0">
+            <ListOrdered size={11} />
+            {queue.length}
+          </button>
+        )}
+
+        {/* Spotify pill */}
         {!spLoading && (
           spConnected ? (
-            <button type="button" onClick={() => setPickerTab('spotify')}
+            <button type="button" onClick={() => { setPickerTab('spotify'); setShowPicker(true) }}
               title={spUser?.display_name}
               className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-600/20 hover:bg-green-600/30 text-green-400 text-[10px] font-bold transition-colors shrink-0">
               <SpotifyIcon size={12} />
@@ -228,7 +266,7 @@ export default function SpotifyPlayer() {
         </button>
       </div>
 
-      {/* Picker panel */}
+      {/* Panel picker */}
       {showPicker && (
         <div className="absolute left-0 right-0 top-full bg-zinc-900 border border-zinc-700 rounded-b-xl shadow-2xl z-50 flex flex-col max-h-[min(32rem,78vh)]">
 
@@ -240,13 +278,18 @@ export default function SpotifyPlayer() {
             </button>
             <button type="button"
               onClick={() => spConnected ? setPickerTab('spotify') : connectSpotify()}
-              className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${pickerTab === 'spotify' ? 'text-green-400 border-b-2 border-green-500' : 'text-zinc-500 hover:text-green-400'}`}>
+              className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${pickerTab === 'spotify' ? 'text-green-400 border-b-2 border-green-500' : 'text-zinc-500 hover:text-green-400'}`}>
               <SpotifyIcon size={11} />
-              {spConnected ? 'Spotify' : 'Conectar Spotify'}
+              {spConnected ? 'Spotify' : 'Conectar'}
+            </button>
+            <button type="button" onClick={() => setPickerTab('queue')}
+              className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${pickerTab === 'queue' ? 'text-red-400 border-b-2 border-red-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              <ListOrdered size={11} />
+              Cola {queue.length > 0 && `(${queue.length})`}
             </button>
           </div>
 
-          {/* ── Tab: Listas locales ── */}
+          {/* ── Tab: Lista local ── */}
           {pickerTab === 'local' && (
             <>
               <div className="px-3 pt-3 pb-2 border-b border-zinc-800 shrink-0">
@@ -257,21 +300,21 @@ export default function SpotifyPlayer() {
                     return (
                       <button key={pl.id} type="button" onClick={() => handlePlaylistPick(pl)}
                         className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition-all border active:scale-[0.98] ${
-                          selected ? 'border-red-500 bg-red-500/10 text-white' : 'border-zinc-700 bg-zinc-800/80 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800'}`}>
+                          selected ? 'border-red-500 bg-red-500/10 text-white' : 'border-zinc-700 bg-zinc-800/80 text-zinc-300 hover:border-zinc-600'}`}>
                         <Music2 size={14} className={selected ? 'text-red-400 shrink-0 mt-0.5' : 'text-zinc-500 shrink-0 mt-0.5'} />
                         <span className="leading-snug line-clamp-2">{pl.name}</span>
                       </button>
                     )
                   })}
                 </div>
-                <button type="button" onClick={handlePlayThisPlaylist}
+                <button type="button" onClick={handlePlayWholeList}
                   className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-green-500/50 transition-colors">
                   <Play size={16} className="text-green-400" fill="currentColor" />
                   <span className="text-green-400 text-sm font-bold">Reproducir lista completa</span>
                 </button>
               </div>
 
-              <div className="flex items-center px-3 py-2 border-b border-zinc-800 bg-zinc-950/50 shrink-0">
+              <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-950/50 shrink-0">
                 <span className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Canciones</span>
               </div>
 
@@ -295,23 +338,29 @@ export default function SpotifyPlayer() {
 
               <div className="overflow-y-auto flex-1 min-h-0">
                 {mergedTracks.length === 0 ? (
-                  <p className="text-zinc-500 text-xs text-center py-4 px-4">Sin canciones en esta lista.</p>
+                  <p className="text-zinc-500 text-xs text-center py-4">Sin canciones en esta lista.</p>
                 ) : (
                   mergedTracks.map((track, i) => (
                     <div key={track.uri} className={`flex items-stretch border-b border-zinc-800/40 ${currentUri === track.uri ? 'bg-zinc-800' : ''}`}>
                       <button type="button" onClick={() => handlePlayTrack(track)}
-                        className="flex-1 text-left px-3 py-2.5 hover:bg-zinc-800/80 transition-colors flex items-center gap-3 min-w-0">
-                        <span className="w-6 shrink-0 text-center text-[10px] font-mono text-zinc-600">{i + 1}</span>
+                        className="flex-1 text-left px-3 py-2.5 hover:bg-zinc-800/80 transition-colors flex items-center gap-2 min-w-0">
+                        <span className="w-5 shrink-0 text-center text-[10px] font-mono text-zinc-600">{i + 1}</span>
                         {currentUri === track.uri && <span className="w-1.5 h-1.5 bg-green-400 rounded-full shrink-0" />}
-                        <div className={currentUri === track.uri ? 'min-w-0' : 'min-w-0 pl-[10px]'}>
+                        <div className={`min-w-0 ${currentUri === track.uri ? '' : 'pl-2.5'}`}>
                           <p className="text-white text-sm font-medium leading-tight truncate">{track.name}</p>
                           <p className="text-zinc-400 text-xs truncate">{track.artist}</p>
                         </div>
                       </button>
+                      {/* Agregar a cola */}
+                      <button type="button" onClick={() => addToQueue(track)}
+                        title="Agregar a la cola"
+                        className="shrink-0 px-2.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 transition-colors">
+                        <Plus size={15} />
+                      </button>
                       {track._custom && (
                         <button type="button" onClick={() => handleRemoveCustom(track.uri)}
-                          className="shrink-0 px-3 text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80">
-                          <Trash2 size={16} />
+                          className="shrink-0 px-2.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 transition-colors">
+                          <Trash2 size={15} />
                         </button>
                       )}
                     </div>
@@ -321,10 +370,9 @@ export default function SpotifyPlayer() {
             </>
           )}
 
-          {/* ── Tab: Spotify real playlists ── */}
+          {/* ── Tab: Spotify playlists ── */}
           {pickerTab === 'spotify' && (
             <>
-              {/* Header con usuario + desconectar */}
               <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
                 <div className="flex items-center gap-2">
                   <SpotifyIcon size={14} className="text-green-400" />
@@ -336,7 +384,6 @@ export default function SpotifyPlayer() {
                 </button>
               </div>
 
-              {/* Playlists del usuario */}
               <div className="px-3 pt-2 pb-2 border-b border-zinc-800 shrink-0">
                 <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider mb-2">Tus playlists</p>
                 {spPlaylistsLoading ? (
@@ -364,7 +411,6 @@ export default function SpotifyPlayer() {
                 )}
               </div>
 
-              {/* Tracks de la playlist seleccionada */}
               {activeSpPlaylist && (
                 <>
                   <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-950/50 shrink-0">
@@ -382,22 +428,31 @@ export default function SpotifyPlayer() {
                       <p className="text-zinc-500 text-xs text-center py-4">Sin canciones</p>
                     ) : (
                       spTracks.map((track, i) => {
-                        const img = track.album?.images?.[2]?.url ?? track.album?.images?.[0]?.url
-                        const artist = track.artists?.[0]?.name ?? ''
+                        const img      = track.album?.images?.[2]?.url ?? track.album?.images?.[0]?.url
+                        const artist   = track.artists?.[0]?.name ?? ''
                         const isPlaying = currentUri === track.uri
                         return (
-                          <button key={track.uri} type="button" onClick={() => load(track.uri)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 border-b border-zinc-800/40 hover:bg-zinc-800/80 transition-colors text-left ${isPlaying ? 'bg-zinc-800' : ''}`}>
-                            <span className="w-5 shrink-0 text-center text-[10px] font-mono text-zinc-600">{i + 1}</span>
-                            {img
-                              ? <img src={img} alt="" className="w-8 h-8 rounded shrink-0 object-cover" />
-                              : <Music2 size={14} className="text-zinc-500 shrink-0" />}
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium leading-tight truncate ${isPlaying ? 'text-green-400' : 'text-white'}`}>{track.name}</p>
-                              <p className="text-zinc-400 text-xs truncate">{artist}</p>
-                            </div>
-                            <span className="text-[10px] text-zinc-600 shrink-0">{msToMin(track.duration_ms)}</span>
-                          </button>
+                          <div key={track.uri} className={`flex items-center border-b border-zinc-800/40 ${isPlaying ? 'bg-zinc-800' : ''}`}>
+                            <button type="button" onClick={() => load(track.uri)}
+                              className="flex-1 flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/80 transition-colors text-left min-w-0">
+                              <span className="w-5 shrink-0 text-center text-[10px] font-mono text-zinc-600">{i + 1}</span>
+                              {img
+                                ? <img src={img} alt="" className="w-8 h-8 rounded shrink-0 object-cover" />
+                                : <Music2 size={14} className="text-zinc-500 shrink-0" />}
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium leading-tight truncate ${isPlaying ? 'text-green-400' : 'text-white'}`}>{track.name}</p>
+                                <p className="text-zinc-400 text-xs truncate">{artist}</p>
+                              </div>
+                              <span className="text-[10px] text-zinc-600 shrink-0">{msToMin(track.duration_ms)}</span>
+                            </button>
+                            {/* Agregar a cola */}
+                            <button type="button"
+                              onClick={() => addToQueue({ uri: track.uri, name: track.name, artist })}
+                              title="Agregar a la cola"
+                              className="shrink-0 px-2.5 py-2.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 transition-colors">
+                              <Plus size={15} />
+                            </button>
+                          </div>
                         )
                       })
                     )}
@@ -412,8 +467,59 @@ export default function SpotifyPlayer() {
               )}
             </>
           )}
+
+          {/* ── Tab: Cola ── */}
+          {pickerTab === 'queue' && (
+            <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800 shrink-0">
+                <p className="text-zinc-400 text-xs font-semibold">
+                  {queue.length === 0 ? 'Cola vacía' : `${queue.length} canción${queue.length !== 1 ? 'es' : ''} en cola`}
+                </p>
+                {queue.length > 0 && (
+                  <button type="button" onClick={clearQueue}
+                    className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors">
+                    Limpiar todo
+                  </button>
+                )}
+              </div>
+
+              {queue.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 py-8 px-4">
+                  <ListOrdered size={28} className="text-zinc-700" />
+                  <p className="text-zinc-600 text-xs text-center">
+                    Agrega canciones con el botón{' '}
+                    <span className="text-zinc-400 font-bold">+</span>{' '}
+                    en cualquier lista.<br />Se reproducirán automáticamente al iniciar cada ronda.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto flex-1 min-h-0">
+                  {queue.map((track, i) => (
+                    <div key={`${track.uri}-${i}`}
+                      className="flex items-center border-b border-zinc-800/40">
+                      <button type="button" onClick={() => { load(track.uri); removeFromQueue(i) }}
+                        className="flex-1 flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/80 transition-colors text-left min-w-0">
+                        <span className="w-5 text-center text-[10px] font-bold text-red-500 shrink-0">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium leading-tight truncate">{track.name}</p>
+                          {track.artist && <p className="text-zinc-400 text-xs truncate">{track.artist}</p>}
+                        </div>
+                      </button>
+                      <button type="button" onClick={() => removeFromQueue(i)}
+                        className="shrink-0 px-3 py-2.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 transition-colors">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       )}
     </div>
   )
-}
+})
+
+export default SpotifyPlayer

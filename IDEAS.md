@@ -109,3 +109,27 @@
 - **Supabase Storage** — para fotos de perfil de competidores y exportación de imágenes de resultado.
 - **`qrcode.react`** — biblioteca lista para generar QR de eventos, links de juez, links de vista pública.
 - **Canvas API** — ya planeada para generar imágenes de resultado. También sirve para OBS overlays y tarjetas de batalla.
+
+---
+
+## 🎧 Spotify Matching entre usuarios
+
+Idea a futuro: si cada usuario vincula su cuenta de Spotify, usar la Web API para analizar sus gustos
+musicales y cruzarlos.
+
+**¿Qué datos se pueden obtener?**
+- Top artists y top tracks del usuario (`/me/top/artists`, `/me/top/tracks`)
+- Géneros favoritos derivados de sus artistas más escuchados
+- Compatibilidad de BPM entre sus canciones preferidas
+
+**¿Cómo sería el feature?**
+- En el perfil de cada bailarín: badge de sus géneros top (salsa, bachata, timba…)
+- Antes de emparejar una batalla: "Daniel y Aly tienen 78% de compatibilidad musical 🎵"
+- Modo "Match por afinidad": el algoritmo de emparejamiento prefiere rivales con gustos similares para que la música resuene en los dos
+- Leaderboard filtrado por género: "Top bailarines de timba en Salsanamá"
+
+**Requisito técnico:**
+- Cada usuario debe haber conectado Spotify (ya hay flujo PKCE)
+- Guardar `top_genres` y `top_artists_ids` en la tabla `profiles` (JSONB)
+- Cron job o trigger que actualice el perfil musical cada semana
+- Algoritmo de similitud: intersection of top genres + cosine similarity de vectores de artistas
