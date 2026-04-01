@@ -105,6 +105,15 @@ export default function App() {
     goTo(SCREENS.MATCHES)
   }, [goTo])
 
+  // ── Cierre rápido desde la lista (sin entrar a batalla) ───────────────────────
+  const handleQuickClose = useCallback((matchId, result) => {
+    setMatches((prev) =>
+      prev.map((m) =>
+        m.id === matchId ? { ...m, completed: true, result } : m
+      )
+    )
+  }, [])
+
   // ── Matches → Leaderboard ────────────────────────────────────────────────────
   const handleViewLeaderboard = useCallback(() => {
     goTo(SCREENS.LEADERBOARD)
@@ -159,6 +168,7 @@ export default function App() {
             matches={matches}
             competitors={competitors}
             onStartBattle={handleStartBattle}
+            onQuickClose={handleQuickClose}
             onViewLeaderboard={handleViewLeaderboard}
             onReset={handleReset}
           />

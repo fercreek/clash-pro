@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Trophy, RotateCcw, CheckCircle, Clock, Coffee } from 'lucide-react'
+import { Trophy, RotateCcw, CheckCircle, Clock, Coffee, Zap, X, Minus } from 'lucide-react'
 import { calculateScores } from '../utils/roundRobin'
 
-function MatchCard({ match, onStartBattle }) {
+function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpand }) {
   if (match.isBye) {
     return (
       <div className="flex items-center gap-3 bg-zinc-800/50 rounded-lg px-4 py-3 opacity-60">
@@ -37,18 +37,63 @@ function MatchCard({ match, onStartBattle }) {
   }
 
   return (
-    <button
-      onClick={() => onStartBattle(match.id)}
-      className="w-full flex items-center gap-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-red-500 rounded-lg px-4 py-3 transition-colors text-left"
-    >
-      <Clock size={16} className="text-red-500 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-semibold truncate">
-          {match.playerA} <span className="text-zinc-500">vs</span> {match.playerB}
-        </p>
-        <p className="text-zinc-400 text-xs">Pendiente — toca para iniciar</p>
+    <div className={`bg-zinc-800 border rounded-lg overflow-hidden transition-colors ${expanded ? 'border-amber-500' : 'border-zinc-700'}`}>
+      {/* Fila principal */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={() => onStartBattle(match.id)}
+          className="flex-1 flex items-center gap-3 text-left min-w-0"
+        >
+          <Clock size={16} className="text-red-500 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-white font-semibold truncate">
+              {match.playerA} <span className="text-zinc-500">vs</span> {match.playerB}
+            </p>
+            <p className="text-zinc-400 text-xs">Toca para iniciar batalla</p>
+          </div>
+        </button>
+        {/* Botón cierre rápido */}
+        <button
+          onClick={onToggleExpand}
+          className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+            expanded
+              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+              : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
+          }`}
+          title="Cerrar batalla manualmente"
+        >
+          {expanded ? <X size={13} /> : <Zap size={13} />}
+          {expanded ? 'Cancelar' : 'Cerrar'}
+        </button>
       </div>
-    </button>
+
+      {/* Panel de votación rápida */}
+      {expanded && (
+        <div className="px-4 pb-3 space-y-2 border-t border-zinc-700 pt-3">
+          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">¿Quién ganó?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onQuickClose(match.id, 'A')}
+              className="flex-1 bg-zinc-700 hover:bg-blue-600/40 border border-zinc-600 hover:border-blue-500 rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+            >
+              {match.playerA}
+            </button>
+            <button
+              onClick={() => onQuickClose(match.id, 'draw')}
+              className="flex items-center gap-1 bg-zinc-700 hover:bg-amber-600/30 border border-zinc-600 hover:border-amber-500 rounded-lg px-3 py-2 text-sm font-bold text-amber-300 transition-colors"
+            >
+              <Minus size={13} /> Empate
+            </button>
+            <button
+              onClick={() => onQuickClose(match.id, 'B')}
+              className="flex-1 bg-zinc-700 hover:bg-blue-600/40 border border-zinc-600 hover:border-blue-500 rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+            >
+              {match.playerB}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -56,10 +101,19 @@ export default function MatchesScreen({
   matches,
   competitors,
   onStartBattle,
+  onQuickClose,
   onViewLeaderboard,
   onReset,
 }) {
   const [viewMode, setViewMode] = useState('list')
+  const [expandedId, setExpandedId] = useState(null)
+
+  const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id))
+
+  const handleQuickClose = (matchId, result) => {
+    onQuickClose(matchId, result)
+    setExpandedId(null)
+  }
 
   const pending = useMemo(() => matches.filter((m) => !m.completed && !m.isBye), [matches])
   const completed = useMemo(() => matches.filter((m) => m.completed && !m.isBye), [matches])
@@ -164,7 +218,7 @@ export default function MatchesScreen({
                 Pendientes ({pending.length})
               </p>
               {pending.map((match) => (
-                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} />
+                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
               ))}
             </section>
           )}
@@ -188,7 +242,7 @@ export default function MatchesScreen({
                 Completadas ({completed.length})
               </p>
               {completed.map((match) => (
-                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} />
+                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
               ))}
             </section>
           )}
@@ -199,7 +253,7 @@ export default function MatchesScreen({
                 Descansos
               </p>
               {byes.map((match) => (
-                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} />
+                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
               ))}
             </section>
           )}
@@ -215,7 +269,7 @@ export default function MatchesScreen({
               </p>
               <div className="space-y-2">
                 {section.items.map((match) => (
-                  <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} />
+                  <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
                 ))}
               </div>
             </section>
