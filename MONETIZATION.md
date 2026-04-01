@@ -30,7 +30,7 @@ El valor está en el piso de baile:
 
 | Límite | Valor |
 |--------|-------|
-| Competidores por torneo | hasta 8 |
+| Competidores por torneo | hasta 10 |
 | Torneos activos | 1 a la vez |
 | Historial | solo el torneo actual |
 | Rondas | Round Robin estándar |

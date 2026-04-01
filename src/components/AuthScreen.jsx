@@ -40,7 +40,7 @@ const PLANS = [
     price: null,
     color: 'zinc',
     items: [
-      'Hasta 8 competidores',
+      'Hasta 10 competidores',
       'Round Robin completo',
       'Cronómetro por rondas',
       'Música integrada',

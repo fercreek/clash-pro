@@ -15,7 +15,7 @@ export function usePlan() {
     isEvent:  plan === 'event',
 
     // Límites
-    maxCompetitors: plan === 'free' ? 8 : 999,
+    maxCompetitors: plan === 'free' ? 10 : 999,
 
     // Features desbloqueadas
     hasHistory:      plan !== 'free',
