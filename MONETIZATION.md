@@ -1,96 +1,112 @@
 # ClashPro — Estrategia de monetización
 
-## TL;DR
-El modelo más realista y rápido de implementar es **SaaS por suscripción mensual**
-dirigido a escuelas de salsa, instructores y organizadores de competencias.
-Precio sugerido: **$9–19 USD/mes** por cuenta pro.
+> Actualizado: 2026-04-01
+
+## Visión real del producto
+
+ClashPro **no es un SaaS B2B**. Es una herramienta para bailarines que practican y para eventos locales de salsa.
+
+El valor está en el piso de baile:
+- El instructor llega a clase, abre la app, selecciona quién está hoy → en 30 segundos están compitiendo
+- El ranking motiva semana a semana ("llevas 3 semanas sin perder contra Daniel")
+- En un evento local, el organizador proyecta la pantalla o pasa el teléfono — sin papel, sin Excel
 
 ---
 
-## 1. ¿A quién le vendes?
+## ¿A quién le sirve?
 
-### Cliente principal — Instructores / Escuelas de baile
-- Tienen grupos regulares (10–30 alumnos por clase)
-- Organizan torneos internos semanales o mensuales
-- Ya pagan por herramientas (música, apps de gestión)
-- Dispuestos a pagar si la herramienta les ahorra tiempo y da imagen profesional
-
-### Cliente secundario — Organizadores de competencias
-- Eventos locales/regionales de salsa, bachata, kizomba
-- Necesitan sistema de brackets, resultados en tiempo real, imagen de marca
-- Mayor disposición a pagar por evento (modelo pago por uso)
-
-### Cliente terciario — Academias grandes / Franquicias
-- Múltiples instructores bajo una misma marca
-- Necesitan dashboard de admin, múltiples torneos simultáneos
-- Modelo de equipo/empresa
+| Usuario | Contexto | Frecuencia de uso |
+|---------|----------|-------------------|
+| **Instructor / academia** | Clases regulares de 8–20 alumnos, torneos internos semanales | Semanal |
+| **Grupo de práctica** | Friends & family battles, sin instructor formal | Semanal / mensual |
+| **Organizador de evento local** | Competencia de barrio, festival pequeño, showcase | Por evento |
 
 ---
 
-## 2. Modelos de cobro (opciones)
+## Modelo de monetización
 
-### Opción A — Suscripción mensual (RECOMENDADA para empezar)
+### Free — para siempre
+> El uso básico tiene que ser gratis. La comunidad de bailarines no tiene presupuesto para software.
 
-| Plan | Precio | Límites | Para quién |
-|------|--------|---------|------------|
-| **Free** | $0 | 1 torneo activo, 8 competidores, sin historial | Probar |
-| **Pro** | $9/mes | Torneos ilimitados, 30 competidores, historial, Spotify | Instructores |
-| **Studio** | $19/mes | Todo Pro + multi-juez, exportar PDF, sin branding | Escuelas |
-| **Event** | $49/evento | Studio por 24h, soporte prioritario | Competencias |
+| Límite | Valor |
+|--------|-------|
+| Competidores por torneo | hasta 8 |
+| Torneos activos | 1 a la vez |
+| Historial | solo el torneo actual |
+| Rondas | Round Robin estándar |
+| Spotify | playlists del sistema |
 
-**¿Por qué suscripción?**
-- Ingreso predecible mes a mes
-- Retención alta si usan la app regularmente
-- Fácil de escalar
+### Pro — $5 USD/mes o $40 USD/año
+> Para instructores y grupos que usan la app regularmente.
 
-### Opción B — Pago por torneo
-- $2–5 USD por torneo creado
-- Bueno si el uso es esporádico
-- Más difícil de cobrar, más fricción
+| Feature | Descripción |
+|---------|-------------|
+| Competidores ilimitados | sin tope en el roster |
+| Torneos ilimitados | varios activos al mismo tiempo |
+| Historial completo | ver torneos anteriores, rankings acumulados |
+| Estadísticas por bailarín | victorias, rachas, matches jugados |
+| Spotify personal | conectar cuenta Spotify para usar tus propias playlists |
+| Sin branding de ClashPro | en pantalla compartida/proyectada |
 
-### Opción C — Lifetime deal (lanzamiento)
-- $49–99 USD pago único, acceso de por vida al plan Pro
-- Ideal para conseguir los primeros 50–100 clientes rápido
-- Vender en AppSumo o directamente
-- Riesgo: te comprometes a mantenerlo sin ingreso recurrente
+### Evento — $10 USD por evento (pago único)
+> Para quien organiza una competencia pública o festival y solo lo usa de vez en cuando.
 
-**Recomendación**: empieza con Lifetime Deal para validar, luego migra a suscripción mensual.
-
----
-
-## 3. ¿Cuánto podrías ganar?
-
-### Escenario conservador (6 meses)
-- 30 usuarios Pro a $9/mes = **$270/mes**
-- 5 usuarios Studio a $19/mes = **$95/mes**
-- Total: **~$365/mes**
-
-### Escenario medio (12 meses con marketing activo)
-- 100 Pro + 20 Studio + 5 Event/mes
-- **~$1,300–1,800 USD/mes**
-
-### Escenario optimista (comunidad salsa internacional)
-- La comunidad de salsa es global (México, Colombia, España, USA)
-- 500 usuarios Pro = **$4,500/mes**
-- Con eventos regionales = **$6,000–10,000/mes**
+| Feature | Descripción |
+|---------|-------------|
+| Todo lo de Pro | por 48 horas |
+| Vista de público (QR) | pantalla read-only para proyectar o compartir en grupo |
+| Modo juez multi-dispositivo | varios jueces votan desde sus teléfonos |
+| Exportar resultado | imagen para Stories / PDF para redes |
 
 ---
 
-## 4. Qué necesitas técnicamente para cobrar
+## ¿Por qué alguien pagaría?
 
-### Paso 1 — Stripe (pagos) ✅ Prioritario
-```
+**El instructor que da clase cada semana:**
+- Ya usa Excel o papel → pierde 10 minutos armando brackets
+- Con ClashPro: 30 segundos, el ranking se actualiza solo, los alumnos se motivan más
+- $5/mes es menos que un café → fácil de justificar si lo usa todos los jueves
+
+**El organizador del evento:**
+- Quiere quedar bien frente al público
+- Una pantalla con el bracket en vivo y el ganador con confetti es una experiencia mucho más profesional
+- $10 por evento es nada comparado con lo que ya gasta
+
+---
+
+## Proyecciones realistas
+
+### 6 meses (boca a boca, comunidad Salsanamá)
+- 15 usuarios Pro × $5 = **$75/mes**
+- 3–5 eventos/mes × $10 = **$30–50/mes**
+- Total: **~$100–125/mes**
+
+### 12 meses (grupos de salsa LATAM + España)
+- 80 usuarios Pro × $5 = **$400/mes**
+- 15 eventos/mes × $10 = **$150/mes**
+- Total: **~$550/mes**
+
+### Optimista (comunidad internacional)
+- 300 usuarios Pro = **$1,500/mes**
+- 40 eventos/mes = **$400/mes**
+- Total: **~$1,900/mes**
+
+> No es un negocio de millones, pero puede pagar el hosting y dar un ingreso pasivo real si la comunidad lo adopta.
+
+---
+
+## Stack técnico para cobrar
+
+### Stripe (pagos)
+```bash
 npm install @stripe/stripe-js stripe
 ```
 - Crear cuenta en stripe.com
-- Configurar productos y precios en el dashboard de Stripe
-- Integrar Stripe Checkout (lo más simple: redirect a página de Stripe)
-- Webhook para activar plan tras pago exitoso
-- Guardar `stripe_customer_id` y `plan` en tabla `profiles` de Supabase
+- Configurar producto "Pro mensual" ($5) + "Pro anual" ($40) + "Evento" ($10)
+- Stripe Checkout (redirect) — lo más simple de implementar
+- Webhook en Supabase Edge Function para activar plan tras pago
 
-**Tiempo estimado**: 1–2 días de desarrollo
-
-### Paso 2 — Control de acceso por plan (Feature Flags)
+### Feature flags en el cliente
 ```js
 // src/hooks/usePlan.js
 export function usePlan() {
@@ -98,111 +114,46 @@ export function usePlan() {
   const plan = profile?.plan ?? 'free'
   return {
     isFree: plan === 'free',
-    isPro: ['pro', 'studio'].includes(plan),
-    isStudio: plan === 'studio',
-    maxCompetitors: plan === 'free' ? 8 : plan === 'pro' ? 30 : 999,
+    isPro: ['pro', 'event'].includes(plan),
+    maxCompetitors: plan === 'free' ? 8 : 999,
     hasHistory: plan !== 'free',
-    hasMultiJudge: plan === 'studio',
+    hasMultiJudge: plan === 'event',
+    hasPublicView: plan === 'event',
   }
 }
 ```
-Limitar features en los componentes según el plan.
 
-### Paso 3 — Landing page
-- Dominio propio (ej. clashpro.app — revisar disponibilidad)
-- Página simple con: problema → solución → precios → testimonios → CTA
-- Puede ser una página en Vercel (misma cuenta)
-- Herramienta rápida: Framer, Webflow, o una página React adicional
+### Columna `plan` en Supabase
+```sql
+alter table public.profiles
+  add column plan text not null default 'free'
+  check (plan in ('free', 'pro', 'event'));
 
-### Paso 4 — Email / Comunicación
-- Resend o SendGrid para emails transaccionales (confirmación de pago, etc.)
-- Un boletín simple (MailerLite gratuito hasta 1,000 suscriptores)
+alter table public.profiles
+  add column plan_expires_at timestamptz;
 
----
-
-## 5. Stack de negocio mínimo para lanzar
-
-| Herramienta | Costo | Para qué |
-|-------------|-------|---------|
-| **Stripe** | 2.9% + $0.30 por transacción | Cobros |
-| **Resend** | Gratis hasta 3,000 emails/mes | Emails transaccionales |
-| **Vercel** | Gratis (hobby) o $20/mes (pro) | Deploy |
-| **Supabase** | Gratis hasta 500MB | Base de datos |
-| **Dominio** | ~$12/año | Identidad (clashpro.app) |
-| **Total fijo** | ~$0–32/mes | Hasta que escales |
-
-El costo fijo inicial es prácticamente $0 si usas los tiers gratuitos.
+alter table public.profiles
+  add column stripe_customer_id text;
+```
 
 ---
 
-## 6. Roadmap para lanzar en 60 días
+## Canales de adquisición (sin ads)
 
-### Semanas 1–2: Producto Pro mínimo
-- [ ] Feature flags por plan
-- [ ] Stripe Checkout integrado
-- [ ] Plan Pro: torneos ilimitados + historial básico
-- [ ] Pantalla de upgrade dentro de la app
-
-### Semanas 3–4: Landing page + primeros usuarios
-- [ ] Landing page simple (clashpro.app)
-- [ ] 5–10 beta testers de tu comunidad Salsanamá (gratis)
-- [ ] Recopilar feedback
-
-### Semanas 5–6: Lanzamiento suave
-- [ ] Lifetime Deal $49 para los primeros 50 clientes
-- [ ] Post en grupos de Facebook de salsa (México, España, Colombia)
-- [ ] Video demo en Instagram/TikTok mostrando la app en acción
-- [ ] Contactar directamente a 20 escuelas de salsa vía DM
-
-### Semanas 7–8: Iteración
-- [ ] Ajustar precios según conversión
-- [ ] Agregar feature más pedida por beta testers
-- [ ] Activar suscripción mensual
+1. **Comunidad Salsanamá** — primeros 10–15 usuarios garantizados, base de prueba real
+2. **Instagram / TikTok** — video de 30s mostrando un torneo en vivo. El formato de bracket + cronómetro es muy visual
+3. **Grupos de WhatsApp y Facebook** de escuelas de salsa en México, Colombia, España
+4. **Contacto directo** — DM a instructores de salsa ofreciendo prueba gratis por un mes
+5. **ProductHunt** — cuando el producto esté estable, para visibilidad técnica global
 
 ---
 
-## 7. Canales de adquisición (sin gastar en ads)
+## Siguiente paso concreto
 
-1. **Comunidad Salsanamá** — tu base ya existente, primeros 10–20 clientes garantizados
-2. **Grupos de Facebook** — "Salsa en México", "Instructores de Baile LATAM" etc. — millones de miembros
-3. **Instagram/TikTok** — video de 30s mostrando un torneo en vivo con la app
-4. **Reddit** — r/salsa, r/dancesport
-5. **Contacto directo** — mensaje a escuelas de salsa locales ofreciendo prueba gratis
-6. **ProductHunt** — lanzar cuando esté estable (acceso a comunidad tech global)
-7. **YouTube tutoriales** — "cómo organizar un torneo de salsa" — SEO a largo plazo
+**Esta semana (antes de tocar Stripe):**
+1. Implementar las features Pro en la app (ver `WORKPLAN.md`)
+2. Validar con 5 instructores de Salsanamá: ¿lo usarían? ¿pagarían $5/mes?
+3. Decidir si el modelo es mensual o por evento primero
 
----
-
-## 8. Ventaja competitiva
-
-No existe ninguna app similar para torneos de baile de salsa improvisación.
-Las alternativas son:
-- Hojas de Excel manuales
-- Challonge/Battlefy (para esports, no baile)
-- Papel y lápiz
-
-**Tu diferenciador**: hecho por alguien de la comunidad salsa, integración Spotify, interfaz mobile-first, sin fricción.
-
----
-
-## 9. Riesgos y cómo mitigarlos
-
-| Riesgo | Mitigación |
-|--------|-----------|
-| Pocos usuarios paguen | Lifetime Deal primero para validar |
-| Spotify revoca API | Tener playlists hardcodeadas como fallback |
-| Alguien lo copia | Comunidad + velocidad de iteración son tu moat |
-| Costo de Supabase sube | Migrar a self-hosted si llegas a 1,000+ users |
-| Churn alto | Agregar features de retención (historial, stats) |
-
----
-
-## 10. Siguiente acción concreta
-
-**Esta semana**:
-1. Registrar dominio `clashpro.app` (~$12/año en Namecheap)
-2. Crear cuenta en Stripe
-3. Hablar con 5 instructores de Salsanamá y preguntar si pagarían y cuánto
-
-**No hacer todavía**: landing page elaborada, invertir en ads, app stores.
-Primero valida que alguien pague.
+**No hacer todavía:** landing page elaborada, ads, app stores.
+Primero valida que el producto sea lo suficientemente bueno como para que alguien lo pida de nuevo.

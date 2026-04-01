@@ -16,7 +16,7 @@
 4. El resultado se registra (Ganador A / Ganador B / Empate) y actualiza el leaderboard en tiempo real.
 5. Al terminar todas las batallas, se muestra al campeón y se puede compartir el ranking por WhatsApp.
 
-**Audiencia:** Organizadores de eventos de salsa (inicialmente Salsanamá, Ciudad de México).
+**Audiencia:** Bailarines y grupos de práctica de salsa (principalmente Salsanamá, Ciudad de México). También sirve para eventos locales y festivales pequeños donde el organizador quiere un bracket digital en vez de papel.
 
 **Estado actual (2026-04-01):** Producción. La app está desplegada en Vercel, usa Supabase para auth y persistencia, e integra el Spotify Embed API para reproducir música durante las batallas.
 
