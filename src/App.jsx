@@ -5,11 +5,13 @@ import BattleScreen from './components/BattleScreen'
 import LeaderboardScreen from './components/LeaderboardScreen'
 import SpotifyPlayer from './components/SpotifyPlayer'
 import AuthScreen from './components/AuthScreen'
+import HamburgerMenu from './components/HamburgerMenu'
 import { generateRoundRobin } from './utils/roundRobin'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
 import { useAuth } from './hooks/useAuth'
 import { supabase } from './lib/supabase'
 import { useTournamentPersistence } from './hooks/useTournamentState'
+import { Menu } from 'lucide-react'
 
 const SCREENS = {
   SETUP: 'setup',
@@ -35,6 +37,7 @@ function computeBootState() {
 
 export default function App() {
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [boot] = useState(computeBootState)
   const [screen, setScreen] = useState(boot.screen)
   const [competitors, setCompetitors] = useState(boot.competitors)
@@ -175,6 +178,20 @@ export default function App() {
     <div className="flex flex-col h-full bg-zinc-950 text-white">
       {/* Player de Spotify persistente — no se desmonta al cambiar pantalla */}
       <SpotifyPlayer />
+
+      {/* Barra de menú */}
+      <div className="flex items-center justify-end px-3 py-1.5 border-b border-zinc-800/60 shrink-0">
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="text-zinc-500 hover:text-white p-1.5 rounded-lg transition-colors"
+          aria-label="Menú"
+        >
+          <Menu size={18} />
+        </button>
+      </div>
+
+      {/* Menú lateral */}
+      {menuOpen && <HamburgerMenu onClose={() => setMenuOpen(false)} />}
 
       {/* Área de contenido principal */}
       <main className="flex-1 overflow-y-auto">
