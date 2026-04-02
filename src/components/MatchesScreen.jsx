@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Trophy, RotateCcw, CheckCircle, Clock, Coffee, Zap, X, Minus } from 'lucide-react'
 import { calculateScores } from '../utils/roundRobin'
+import { showMatchesLeaderboardControls, showMatchesMiniRanking } from '../lib/featurePolicy'
 
-function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpand }) {
+function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpand, isTournament }) {
   if (match.isBye) {
     return (
       <div className="flex items-center gap-3 bg-zinc-800/50 rounded-lg px-4 py-3 opacity-60">
@@ -17,11 +18,13 @@ function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpan
 
   if (match.completed) {
     const resultLabel =
-      match.result === 'A'
-        ? `Ganó ${match.playerA}`
-        : match.result === 'B'
-        ? `Ganó ${match.playerB}`
-        : 'Empate'
+      match.result == null
+        ? 'Práctica completada'
+        : match.result === 'A'
+          ? `Ganó ${match.playerA}`
+          : match.result === 'B'
+            ? `Ganó ${match.playerB}`
+            : 'Empate'
 
     return (
       <div className="flex items-center gap-3 bg-zinc-800/50 rounded-lg px-4 py-3">
@@ -38,9 +41,9 @@ function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpan
 
   return (
     <div className={`bg-zinc-800 border rounded-lg overflow-hidden transition-colors ${expanded ? 'border-amber-500' : 'border-zinc-700'}`}>
-      {/* Fila principal */}
       <div className="flex items-center gap-3 px-4 py-3">
         <button
+          type="button"
           onClick={() => onStartBattle(match.id)}
           className="flex-1 flex items-center gap-3 text-left min-w-0"
         >
@@ -52,46 +55,61 @@ function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpan
             <p className="text-zinc-400 text-xs">Toca para iniciar batalla</p>
           </div>
         </button>
-        {/* Botón cierre rápido */}
         <button
+          type="button"
           onClick={onToggleExpand}
           className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${
             expanded
               ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
               : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
           }`}
-          title="Cerrar batalla manualmente"
+          title={isTournament ? 'Cerrar batalla manualmente' : 'Marcar como hecha'}
         >
           {expanded ? <X size={13} /> : <Zap size={13} />}
           {expanded ? 'Cancelar' : 'Cerrar'}
         </button>
       </div>
 
-      {/* Panel de votación rápida */}
       {expanded && (
-        <div className="px-4 pb-3 space-y-2 border-t border-zinc-700 pt-3">
-          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">¿Quién ganó?</p>
-          <div className="flex gap-2">
+        isTournament ? (
+          <div className="px-4 pb-3 space-y-2 border-t border-zinc-700 pt-3">
+            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">¿Quién ganó?</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onQuickClose(match.id, 'A')}
+                className="flex-1 bg-zinc-700 hover:bg-blue-600/40 border border-zinc-600 hover:border-blue-500 rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+              >
+                {match.playerA}
+              </button>
+              <button
+                type="button"
+                onClick={() => onQuickClose(match.id, 'draw')}
+                className="flex items-center gap-1 bg-zinc-700 hover:bg-amber-600/30 border border-zinc-600 hover:border-amber-500 rounded-lg px-3 py-2 text-sm font-bold text-amber-300 transition-colors"
+              >
+                <Minus size={13} /> Empate
+              </button>
+              <button
+                type="button"
+                onClick={() => onQuickClose(match.id, 'B')}
+                className="flex-1 bg-zinc-700 hover:bg-blue-600/40 border border-zinc-600 hover:border-blue-500 rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+              >
+                {match.playerB}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-4 pb-3 border-t border-zinc-700 pt-3">
+            <p className="text-zinc-500 text-xs mb-2">Sin resultado de competición.</p>
             <button
-              onClick={() => onQuickClose(match.id, 'A')}
-              className="flex-1 bg-zinc-700 hover:bg-blue-600/40 border border-zinc-600 hover:border-blue-500 rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+              type="button"
+              onClick={() => onQuickClose(match.id, null)}
+              className="w-full bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 rounded-lg px-3 py-2.5 text-sm font-bold text-white transition-colors"
             >
-              {match.playerA}
-            </button>
-            <button
-              onClick={() => onQuickClose(match.id, 'draw')}
-              className="flex items-center gap-1 bg-zinc-700 hover:bg-amber-600/30 border border-zinc-600 hover:border-amber-500 rounded-lg px-3 py-2 text-sm font-bold text-amber-300 transition-colors"
-            >
-              <Minus size={13} /> Empate
-            </button>
-            <button
-              onClick={() => onQuickClose(match.id, 'B')}
-              className="flex-1 bg-zinc-700 hover:bg-blue-600/40 border border-zinc-600 hover:border-blue-500 rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
-            >
-              {match.playerB}
+              Listo — siguiente batalla
             </button>
           </div>
-        </div>
+        )
       )}
     </div>
   )
@@ -100,6 +118,7 @@ function MatchCard({ match, onStartBattle, onQuickClose, expanded, onToggleExpan
 export default function MatchesScreen({
   matches,
   competitors,
+  isTournament,
   onStartBattle,
   onQuickClose,
   onViewLeaderboard,
@@ -144,6 +163,10 @@ export default function MatchesScreen({
   )
 
   const allDone = pending.length === 0
+  const showLb = showMatchesLeaderboardControls(isTournament)
+  const showMini = showMatchesMiniRanking(isTournament)
+
+  const matchCardProps = { onStartBattle, onQuickClose: handleQuickClose, isTournament }
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-5">
@@ -175,14 +198,16 @@ export default function MatchesScreen({
               Por ronda
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onViewLeaderboard}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            <Trophy size={15} className="text-amber-400" />
-            Ranking
-          </button>
+          {showLb && (
+            <button
+              type="button"
+              onClick={onViewLeaderboard}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Trophy size={15} className="text-amber-400" />
+              Ranking
+            </button>
+          )}
           <button
             type="button"
             onClick={onReset}
@@ -194,8 +219,7 @@ export default function MatchesScreen({
         </div>
       </div>
 
-      {/* Mini leaderboard top 3 */}
-      {completed.length > 0 && (
+      {showMini && completed.length > 0 && (
         <div className="bg-zinc-900 rounded-xl p-3 space-y-1">
           <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-2">
             Líderes
@@ -218,21 +242,31 @@ export default function MatchesScreen({
                 Pendientes ({pending.length})
               </p>
               {pending.map((match) => (
-                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  expanded={expandedId === match.id}
+                  onToggleExpand={() => toggleExpand(match.id)}
+                  {...matchCardProps}
+                />
               ))}
             </section>
           )}
 
           {allDone && (
             <div className="text-center space-y-3 py-4">
-              <p className="text-green-400 font-bold text-lg">¡Torneo completado!</p>
-              <button
-                type="button"
-                onClick={onViewLeaderboard}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-400 rounded-xl font-black text-xl tracking-wide transition-colors"
-              >
-                VER GANADOR
-              </button>
+              <p className="text-green-400 font-bold text-lg">
+                {isTournament ? '¡Torneo completado!' : '¡Ronda completada!'}
+              </p>
+              {isTournament && (
+                <button
+                  type="button"
+                  onClick={onViewLeaderboard}
+                  className="w-full py-4 bg-amber-500 hover:bg-amber-400 rounded-xl font-black text-xl tracking-wide transition-colors"
+                >
+                  VER GANADOR
+                </button>
+              )}
             </div>
           )}
 
@@ -242,7 +276,13 @@ export default function MatchesScreen({
                 Completadas ({completed.length})
               </p>
               {completed.map((match) => (
-                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  expanded={expandedId === match.id}
+                  onToggleExpand={() => toggleExpand(match.id)}
+                  {...matchCardProps}
+                />
               ))}
             </section>
           )}
@@ -253,7 +293,13 @@ export default function MatchesScreen({
                 Descansos
               </p>
               {byes.map((match) => (
-                <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  expanded={expandedId === match.id}
+                  onToggleExpand={() => toggleExpand(match.id)}
+                  {...matchCardProps}
+                />
               ))}
             </section>
           )}
@@ -269,21 +315,31 @@ export default function MatchesScreen({
               </p>
               <div className="space-y-2">
                 {section.items.map((match) => (
-                  <MatchCard key={match.id} match={match} onStartBattle={onStartBattle} onQuickClose={handleQuickClose} expanded={expandedId === match.id} onToggleExpand={() => toggleExpand(match.id)} />
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    expanded={expandedId === match.id}
+                    onToggleExpand={() => toggleExpand(match.id)}
+                    {...matchCardProps}
+                  />
                 ))}
               </div>
             </section>
           ))}
           {allDone && (
             <div className="text-center space-y-3 py-4">
-              <p className="text-green-400 font-bold text-lg">¡Torneo completado!</p>
-              <button
-                type="button"
-                onClick={onViewLeaderboard}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-400 rounded-xl font-black text-xl tracking-wide transition-colors"
-              >
-                VER GANADOR
-              </button>
+              <p className="text-green-400 font-bold text-lg">
+                {isTournament ? '¡Torneo completado!' : '¡Ronda completada!'}
+              </p>
+              {isTournament && (
+                <button
+                  type="button"
+                  onClick={onViewLeaderboard}
+                  className="w-full py-4 bg-amber-500 hover:bg-amber-400 rounded-xl font-black text-xl tracking-wide transition-colors"
+                >
+                  VER GANADOR
+                </button>
+              )}
             </div>
           )}
         </div>

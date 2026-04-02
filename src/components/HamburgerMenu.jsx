@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  X, LogOut, Tag, Coffee, ChevronRight, CheckCircle, AlertCircle, ImagePlus,
+  X, LogOut, Tag, Coffee, ChevronRight, CheckCircle, AlertCircle, ImagePlus, History,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { usePlan } from '../hooks/usePlan'
@@ -19,9 +19,9 @@ function fileToBase64(file) {
   })
 }
 
-export default function HamburgerMenu({ onClose }) {
+export default function HamburgerMenu({ onClose, onOpenTournamentHistory }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
-  const { planLabel, isPro } = usePlan()
+  const { planLabel, isPro, hasHistory } = usePlan()
 
   const [promoCode, setPromoCode] = useState('')
   const [promoStatus, setPromoStatus] = useState(null)
@@ -209,6 +209,20 @@ export default function HamburgerMenu({ onClose }) {
               <p className="text-red-400 text-sm font-semibold">Acceso Pro activo</p>
               <p className="text-zinc-500 text-xs mt-0.5">Gracias por apoyar ClashPro</p>
             </div>
+          )}
+
+          {hasHistory && onOpenTournamentHistory && (
+            <button
+              type="button"
+              onClick={onOpenTournamentHistory}
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+            >
+              <div className="flex items-center gap-2.5">
+                <History size={16} className="text-red-400" />
+                <p className="text-white text-sm font-medium">Historial de torneos</p>
+              </div>
+              <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
+            </button>
           )}
 
           <a

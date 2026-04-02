@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect } from 'react'
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { Trophy, Medal, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { calculateScores, computeExtendedStats } from '../utils/roundRobin'
@@ -9,6 +9,18 @@ function buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches
     const s = extStats.find((x) => x.name === e.name)
     const detail = s ? `(${s.wins}V ${s.losses}D)` : ''
     lines.push(`${i + 1}. ${e.name} — ${e.points} pts ${detail}`.trim())
+  })
+  if (isFinished && leaderboard.length > 0) {
+    lines.push('', `🥇 Campeón: ${leaderboard[0].name}`)
+  }
+  lines.push('', 'clash-pro.vercel.app')
+  return lines.join('\n')
+}
+
+function buildWhatsAppTextSimple(leaderboard, completedMatches, totalMatches, isFinished) {
+  const lines = ['🏆 ClashPro — Resultado', '']
+  leaderboard.forEach((e, i) => {
+    lines.push(`${i + 1}. ${e.name} — ${e.points} pts`)
   })
   if (isFinished && leaderboard.length > 0) {
     lines.push('', `🥇 Campeón: ${leaderboard[0].name}`)
@@ -34,7 +46,7 @@ const RANK_STYLES = [
   { bg: 'bg-orange-800/20 border-orange-700', text: 'text-orange-500', icon: Medal },
 ]
 
-function ScoreRow({ entry, rank, stat }) {
+function ScoreRow({ entry, rank, stat, showExtendedStats }) {
   const style = RANK_STYLES[rank] ?? {
     bg: 'bg-zinc-800/50 border-zinc-800',
     text: 'text-zinc-400',
@@ -54,7 +66,7 @@ function ScoreRow({ entry, rank, stat }) {
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-white font-bold truncate">{entry.name}</p>
-        {stat && stat.played > 0 && (
+        {showExtendedStats && stat && stat.played > 0 && (
           <p className="text-xs text-zinc-500 mt-0.5">
             {stat.wins}V · {stat.losses}D · {stat.draws}E
             {streakLabel && (
@@ -74,8 +86,19 @@ function ScoreRow({ entry, rank, stat }) {
   )
 }
 
-export default function LeaderboardScreen({ competitors, matches, onBack, onReset, onNewSession }) {
+export default function LeaderboardScreen({
+  competitors,
+  matches,
+  onBack,
+  onReset,
+  onNewSession,
+  showExtendedStats = true,
+  showConfetti = true,
+  showRichWhatsApp = true,
+  showFooterActions = true,
+}) {
   const [copyDone, setCopyDone] = useState(false)
+  const confettiFiredRef = useRef(false)
 
   const leaderboard = useMemo(
     () => calculateScores(competitors, matches),
@@ -83,8 +106,8 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
   )
 
   const extStats = useMemo(
-    () => computeExtendedStats(competitors, matches),
-    [competitors, matches]
+    () => (showExtendedStats ? computeExtendedStats(competitors, matches) : []),
+    [competitors, matches, showExtendedStats]
   )
 
   const totalMatches = matches.filter((m) => !m.isBye).length
@@ -92,15 +115,15 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
   const isFinished = totalMatches === completedMatches && totalMatches > 0
 
   useEffect(() => {
-    if (completedMatches > 0) {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#ef4444', '#f97316', '#ffffff', '#fbbf24'],
-      })
-    }
-  }, []) // eslint-disable-line
+    if (!showConfetti || completedMatches <= 0 || confettiFiredRef.current) return
+    confettiFiredRef.current = true
+    confetti({
+      particleCount: 120,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#ef4444', '#f97316', '#ffffff', '#fbbf24'],
+    })
+  }, [showConfetti, completedMatches])
 
   const shareText = useMemo(
     () => buildShareText(leaderboard, completedMatches, totalMatches, isFinished),
@@ -108,8 +131,11 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
   )
 
   const whatsappText = useMemo(
-    () => buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches, isFinished),
-    [leaderboard, extStats, completedMatches, totalMatches, isFinished]
+    () =>
+      showRichWhatsApp
+        ? buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches, isFinished)
+        : buildWhatsAppTextSimple(leaderboard, completedMatches, totalMatches, isFinished),
+    [leaderboard, extStats, completedMatches, totalMatches, isFinished, showRichWhatsApp]
   )
 
   const handleShare = useCallback(async () => {
@@ -138,9 +164,9 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3 pt-2">
         <button
+          type="button"
           onClick={onBack}
           className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
         >
@@ -181,7 +207,6 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
         </div>
       </div>
 
-      {/* Winner highlight */}
       {isFinished && leaderboard.length > 0 && (
         <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
           <Trophy size={36} className="text-amber-400 mx-auto mb-2" />
@@ -193,7 +218,6 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
         </div>
       )}
 
-      {/* Rankings */}
       <section className="space-y-2">
         {leaderboard.map((entry, i) => (
           <ScoreRow
@@ -201,12 +225,12 @@ export default function LeaderboardScreen({ competitors, matches, onBack, onRese
             entry={entry}
             rank={i}
             stat={extStats.find((s) => s.name === entry.name)}
+            showExtendedStats={showExtendedStats}
           />
         ))}
       </section>
 
-      {/* Acciones finales */}
-      {isFinished && (
+      {isFinished && showFooterActions && (
         <div className="flex gap-3 pt-2">
           {onNewSession && (
             <button

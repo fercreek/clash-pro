@@ -61,7 +61,18 @@ function TimerCircle({ seconds, total, paused, onClick }) {
   )
 }
 
-export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel, nowPlaying, onNextSong, onRoundStart, matchNumber, totalMatches }) {
+export default function BattleScreen({
+  match,
+  roundTime,
+  isTournament = true,
+  onBattleEnd,
+  onCancel,
+  nowPlaying,
+  onNextSong,
+  onRoundStart,
+  matchNumber,
+  totalMatches,
+}) {
   const [phase, setPhase]         = useState(PHASE.ROUND1_READY)
   const [timeLeft, setTimeLeft]   = useState(roundTime)
   const [paused, setPaused]       = useState(false)
@@ -143,9 +154,12 @@ export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel, 
     } else if (phase === PHASE.ROUND1_DONE) {
       setPhase(PHASE.ROUND2_RUNNING)
       playBell()
-      startCountdown(() => setPhase(PHASE.VOTING))
+      startCountdown(() => {
+        if (isTournament) setPhase(PHASE.VOTING)
+        else onBattleEnd(match.id, null)
+      })
     }
-  }, [phase, startCountdown, unlock, playBell, onRoundStart])
+  }, [phase, startCountdown, unlock, playBell, onRoundStart, isTournament, onBattleEnd, match.id])
 
   const handleVote = useCallback((result) => onBattleEnd(match.id, result), [match.id, onBattleEnd])
   const handleBack = useCallback(() => { clearTimer(); onCancel() }, [clearTimer, onCancel])
@@ -271,7 +285,7 @@ export default function BattleScreen({ match, roundTime, onBattleEnd, onCancel, 
       )}
 
       {/* Votación */}
-      {phase === PHASE.VOTING && (
+      {phase === PHASE.VOTING && isTournament && (
         <div className="w-full max-w-sm space-y-3">
           <p className="text-center text-zinc-400 text-sm mb-4">
             Selecciona el resultado de la batalla

@@ -40,6 +40,11 @@ export function generateRoundRobin(competitors) {
  * Calcula el leaderboard a partir del array de matches.
  * Puntuación: Victoria = 3 pts | Empate = 1 pt cada uno | Derrota = 0 pts
  */
+export function isRoundRobinFinished(matches) {
+  const list = matches.filter((m) => !m.isBye)
+  return list.length > 0 && list.every((m) => m.completed)
+}
+
 export function calculateScores(competitors, matches) {
   const scores = Object.fromEntries(competitors.map((c) => [c, 0]))
 

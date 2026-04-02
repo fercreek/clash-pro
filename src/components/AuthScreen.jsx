@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { Timer, Trophy, Music, Smartphone, Zap, BarChart2, Coffee } from 'lucide-react'
+import { Timer, Trophy, Music, Smartphone, Zap, BarChart2, Coffee, Sparkles } from 'lucide-react'
+import { LANDING_NEWS } from '../data/landingNews'
 
 const FEATURES = [
   {
@@ -29,8 +30,8 @@ const FEATURES = [
   },
   {
     icon: BarChart2,
-    title: 'Historial por usuario',
-    desc: 'Tu torneo se guarda automáticamente. Retómalo desde cualquier dispositivo. (Pro)',
+    title: 'Historial de torneos',
+    desc: 'Competiciones terminadas guardadas en la nube; revisa ranking y comparte de nuevo (plan Pro).',
   },
 ]
 
@@ -41,10 +42,9 @@ const PLANS = [
     color: 'zinc',
     items: [
       'Hasta 10 competidores',
+      'Modo práctica: cronómetro y rotación',
       'Round Robin completo',
-      'Cronómetro por rondas',
       'Música integrada',
-      'Ranking por sesión',
     ],
     locked: [],
   },
@@ -54,10 +54,10 @@ const PLANS = [
     color: 'red',
     items: [
       'Competidores ilimitados',
-      'Historial de torneos',
-      'Estadísticas por bailarín',
-      'Compartir resultado como imagen',
-      'Vista pública para proyectar',
+      'Modo competición: votación, puntos y ranking',
+      'Estadísticas y compartir enriquecido',
+      'Historial de torneos finalizados',
+      'Compartir imagen Stories (próximamente)',
     ],
     locked: [],
   },
@@ -136,6 +136,25 @@ export default function AuthScreen({ onEmailSignIn, onEmailSignUp }) {
                 <p className="text-zinc-500 text-xs mt-0.5 leading-snug">{desc}</p>
               </div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="px-5 pb-12">
+        <p className="text-center text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-4 flex items-center justify-center gap-2">
+          <Sparkles size={14} className="text-amber-400 shrink-0" />
+          Novedades
+        </p>
+        <div className="max-w-md mx-auto space-y-3">
+          {LANDING_NEWS.map((item) => (
+            <article
+              key={`${item.date}-${item.title}`}
+              className="bg-zinc-900/90 border border-zinc-800 rounded-2xl px-4 py-3"
+            >
+              <p className="text-[10px] font-semibold text-red-500/90 uppercase tracking-wider">{item.date}</p>
+              <p className="text-white text-sm font-bold mt-1">{item.title}</p>
+              <p className="text-zinc-500 text-xs mt-1 leading-snug">{item.body}</p>
+            </article>
           ))}
         </div>
       </section>

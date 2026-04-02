@@ -1,0 +1,14 @@
+---
+description: Keep landing news and plan copy aligned when shipping user-visible work
+alwaysApply: true
+---
+
+# Landing y novedades públicas
+
+Cuando entregues o cambies algo **visible** para usuario o visitante (feature, límite de plan, flujo, PWA, auth, textos legales de producto):
+
+1. Añade una entrada **nueva arriba** del todo en `src/data/landingNews.js` (`date` en `YYYY-MM-DD`, `title` y `body` en español, concreto).
+2. Revisa `src/components/AuthScreen.jsx` (hero, features o tabla de planes) solo si hace falta que coincida con esa noticia; la sección **Novedades** lee el array del paso 1.
+3. Si tocaste beneficios Pro/Gratis, alinea `src/components/PlansComparisonModal.jsx` con las mismas afirmaciones.
+
+No omitas el paso 1 en trabajo orientado a producto visible. Una entrada por tema o release suele bastar.
