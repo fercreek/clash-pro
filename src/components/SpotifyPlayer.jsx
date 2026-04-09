@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import {
   ListMusic, X, Play, Plus, Trash2,
-  ChevronLeft, ChevronRight, Music2, Loader2, ListOrdered,
+  ChevronLeft, ChevronRight, Music2, Loader2, ListOrdered, Youtube,
 } from 'lucide-react'
 import { PLAYLISTS } from '../utils/songs'
 import {
@@ -11,6 +11,12 @@ import {
   addCustomTrack,
   removeCustomTrack,
 } from '../utils/spotifyUri'
+import {
+  parseYouTubeUrl,
+  buildEmbedUrl,
+  loadYtPlaylists,
+  saveYtPlaylists,
+} from '../utils/youtubeUri'
 import { useSpotifyAuth } from '../hooks/useSpotifyAuth'
 import { getMyPlaylists, getPlaylistTracks, msToMin } from '../lib/spotifyApi'
 
@@ -62,6 +68,12 @@ const SpotifyPlayer = forwardRef(function SpotifyPlayer({ onTrackChange }, ref) 
   const [activeSpPlaylistId, setActiveSpPlaylistId] = useState(null)
   const [spTracks, setSpTracks]                   = useState([])
   const [spTracksLoading, setSpTracksLoading]     = useState(false)
+
+  // YouTube state
+  const [ytPlaylists, setYtPlaylists] = useState(loadYtPlaylists)   // [{ label, parsed }]
+  const [ytActive, setYtActive]       = useState(null)              // { type, id } | null
+  const [ytInput, setYtInput]         = useState('')
+  const [ytError, setYtError]         = useState('')
 
   const activePlaylist = PLAYLISTS.find((p) => p.id === activePlaylistId) ?? PLAYLISTS[0]
   const mergedTracks = useMemo(
@@ -211,9 +223,55 @@ const SpotifyPlayer = forwardRef(function SpotifyPlayer({ onTrackChange }, ref) 
   const canStep = mergedTracks.length > 0
   const activeSpPlaylist = spPlaylists.find((p) => p.id === activeSpPlaylistId)
 
+  const handleYtAdd = (e) => {
+    e.preventDefault()
+    setYtError('')
+    const parsed = parseYouTubeUrl(ytInput)
+    if (!parsed) { setYtError('URL de YouTube inválida'); return }
+    const label = ytInput.trim().length > 50 ? ytInput.trim().slice(0, 47) + '…' : ytInput.trim()
+    const already = ytPlaylists.some((p) => p.parsed.id === parsed.id)
+    if (!already) {
+      const next = [{ label, parsed }, ...ytPlaylists]
+      setYtPlaylists(next)
+      saveYtPlaylists(next)
+    }
+    setYtActive(parsed)
+    setYtInput('')
+    setShowPicker(false)
+  }
+
+  const handleYtRemove = (id) => {
+    const next = ytPlaylists.filter((p) => p.parsed.id !== id)
+    setYtPlaylists(next)
+    saveYtPlaylists(next)
+    if (ytActive?.id === id) setYtActive(null)
+  }
+
   return (
     <div className="relative w-full bg-zinc-900 border-b border-zinc-800 shrink-0">
-      <div id="spotify-embed-target" />
+      {/* Spotify embed (oculto cuando YouTube está activo) */}
+      <div id="spotify-embed-target" style={ytActive ? { display: 'none' } : {}} />
+      {/* YouTube iframe embed */}
+      {ytActive && (
+        <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+          <iframe
+            key={ytActive.id}
+            src={buildEmbedUrl(ytActive)}
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full border-0"
+            title="YouTube"
+          />
+          <button
+            type="button"
+            onClick={() => setYtActive(null)}
+            className="absolute top-1 right-1 bg-zinc-900/80 hover:bg-zinc-800 rounded-md p-1 text-zinc-400 hover:text-white z-10"
+            title="Cerrar YouTube"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Barra de control */}
       <div className="flex items-center gap-1 px-2 h-9 border-t border-zinc-800">
@@ -286,6 +344,11 @@ const SpotifyPlayer = forwardRef(function SpotifyPlayer({ onTrackChange }, ref) 
               className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${pickerTab === 'queue' ? 'text-red-400 border-b-2 border-red-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
               <ListOrdered size={11} />
               Cola {queue.length > 0 && `(${queue.length})`}
+            </button>
+            <button type="button" onClick={() => setPickerTab('youtube')}
+              className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1 transition-colors ${pickerTab === 'youtube' ? 'text-red-400 border-b-2 border-red-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              <Youtube size={11} />
+              YT
             </button>
           </div>
 
@@ -511,6 +574,60 @@ const SpotifyPlayer = forwardRef(function SpotifyPlayer({ onTrackChange }, ref) 
                       </button>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Tab: YouTube ── */}
+          {pickerTab === 'youtube' && (
+            <div className="flex flex-col flex-1 min-h-0">
+              <form onSubmit={handleYtAdd} className="px-4 py-3 border-b border-zinc-800/60 space-y-2 shrink-0">
+                <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Pega un enlace de YouTube</p>
+                <div className="flex gap-2">
+                  <input
+                    value={ytInput}
+                    onChange={(e) => { setYtInput(e.target.value); setYtError('') }}
+                    placeholder="youtube.com/playlist?list=… o watch?v=…"
+                    className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-500"
+                  />
+                  <button type="submit"
+                    className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold">
+                    <Play size={14} fill="currentColor" />
+                  </button>
+                </div>
+                {ytError && <p className="text-red-400 text-xs">{ytError}</p>}
+              </form>
+
+              {ytPlaylists.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 py-8 px-4">
+                  <Youtube size={28} className="text-zinc-700" />
+                  <p className="text-zinc-600 text-xs text-center">
+                    Pega una URL de playlist o video de YouTube para reproducir música salsa sin Spotify.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto flex-1 min-h-0">
+                  {ytPlaylists.map(({ label, parsed }) => {
+                    const isActive = ytActive?.id === parsed.id
+                    return (
+                      <div key={parsed.id} className={`flex items-center border-b border-zinc-800/40 ${isActive ? 'bg-zinc-800' : ''}`}>
+                        <button type="button" onClick={() => { setYtActive(parsed); setShowPicker(false) }}
+                          className="flex-1 flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/80 transition-colors text-left min-w-0">
+                          <Youtube size={14} className={isActive ? 'text-red-400 shrink-0' : 'text-zinc-500 shrink-0'} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium leading-tight truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}>{label}</p>
+                            <p className="text-zinc-500 text-[10px]">{parsed.type === 'playlist' ? 'Playlist' : 'Video'}</p>
+                          </div>
+                          {isActive && <span className="w-1.5 h-1.5 bg-red-400 rounded-full shrink-0" />}
+                        </button>
+                        <button type="button" onClick={() => handleYtRemove(parsed.id)}
+                          className="shrink-0 px-2.5 py-2.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/80 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
