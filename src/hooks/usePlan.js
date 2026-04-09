@@ -6,7 +6,7 @@ import { useAuth } from './useAuth'
  */
 export function usePlan() {
   const { profile } = useAuth()
-  const plan = profile?.plan ?? 'free'
+  const plan = profile?.plan ?? 'pro'
 
   return {
     plan,
