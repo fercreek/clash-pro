@@ -83,7 +83,7 @@ export default function BattleScreen({
   const isRunning      = phase === PHASE.ROUND1_RUNNING || phase === PHASE.ROUND2_RUNNING
   const isCountingDown = isRunning && !paused
 
-  const { unlock, playBell } = useCountdownBeeps({ timeLeft, isCountingDown, muted: soundMuted })
+  const { unlock, playBell, playRoundEnd, playParticipantChange } = useCountdownBeeps({ timeLeft, isCountingDown, muted: soundMuted })
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
@@ -118,9 +118,9 @@ export default function BattleScreen({
     else        { clearTimer(); setPaused(true) }
   }, [paused, clearTimer, runInterval])
 
-  // +N segundos al tiempo restante
+  // ±N segundos al tiempo restante
   const addTime = useCallback((secs) => {
-    setTimeLeft((prev) => Math.min(prev + secs, roundTime * 2))
+    setTimeLeft((prev) => Math.max(1, Math.min(prev + secs, roundTime * 2)))
   }, [roundTime])
 
   // Reiniciar la fase actual
@@ -146,20 +146,25 @@ export default function BattleScreen({
 
   const handlePlay = useCallback(() => {
     unlock()
-    playBell()
     onRoundStart?.()   // auto-avanza canción en la cola
     if (phase === PHASE.ROUND1_READY) {
+      playBell()  // inicio ronda 1
       setPhase(PHASE.ROUND1_RUNNING)
-      startCountdown(() => setPhase(PHASE.ROUND1_DONE))
-    } else if (phase === PHASE.ROUND1_DONE) {
-      setPhase(PHASE.ROUND2_RUNNING)
-      playBell()
       startCountdown(() => {
+        playRoundEnd()  // fin ronda 1
+        setPhase(PHASE.ROUND1_DONE)
+      })
+    } else if (phase === PHASE.ROUND1_DONE) {
+      playParticipantChange()  // cambio de participante
+      setPhase(PHASE.ROUND2_RUNNING)
+      setTimeout(() => playBell(), 300)  // inicio ronda 2 con pequeño delay
+      startCountdown(() => {
+        playRoundEnd()  // fin ronda 2
         if (isTournament) setPhase(PHASE.VOTING)
         else onBattleEnd(match.id, null)
       })
     }
-  }, [phase, startCountdown, unlock, playBell, onRoundStart, isTournament, onBattleEnd, match.id])
+  }, [phase, startCountdown, unlock, playBell, playRoundEnd, playParticipantChange, onRoundStart, isTournament, onBattleEnd, match.id])
 
   const handleVote = useCallback((result) => onBattleEnd(match.id, result), [match.id, onBattleEnd])
   const handleBack = useCallback(() => { clearTimer(); onCancel() }, [clearTimer, onCancel])
@@ -237,14 +242,24 @@ export default function BattleScreen({
             <RotateCcw size={14} /> Reiniciar
           </button>
 
-          {/* +10 segundos */}
+          {/* -5 segundos */}
           <button
             type="button"
-            onClick={() => addTime(10)}
-            title="+10 segundos"
+            onClick={() => addTime(-5)}
+            title="-5 segundos"
             className="flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors"
           >
-            <Plus size={13} />10s
+            <Minus size={13} />5s
+          </button>
+
+          {/* +5 segundos */}
+          <button
+            type="button"
+            onClick={() => addTime(5)}
+            title="+5 segundos"
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors"
+          >
+            <Plus size={13} />5s
           </button>
 
           {/* Terminar ronda */}
