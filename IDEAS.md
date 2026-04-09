@@ -53,6 +53,21 @@
 
 ---
 
+## 👂 Entrenamiento de oído (Salsa Lab)
+
+- **Identifica el instrumento** — escuchar un clip corto y elegir si domina conga, bongo, campana, piano, bajo, metales o voz.
+- **Reconoce la clave** — ejercicios para distinguir 2-3 vs 3-2 con dificultad progresiva.
+- **Patrones por instrumento** — detectar tumbao de piano, martillo de bongo y campaneo en contexto real.
+- **Secciones de canción** — adivinar si suena intro, montuno, mambo o coro para mejorar lectura musical en social.
+- **Modo aislado vs mezcla** — primero escuchar el stem limpio y luego el mismo patrón dentro de la mezcla completa.
+- **Entrenamiento adaptativo** — repetir más seguido lo que el usuario falla y subir nivel en lo que ya domina.
+- **Rachas y progreso semanal** — métricas por instrumento: precisión, tiempo de respuesta, racha y mejora por semana.
+- **Free vs Pro** — Free con paquete base de ejercicios; Pro desbloquea más instrumentos, más clips y modo avanzado.
+- **Licencias de audio** — usar audio propio o librerías con permiso educativo para evitar problemas de derechos.
+- **Modo clase** — sesión guiada para profesor: lanzar ronda de oído grupal y ver resultados agregados en vivo.
+
+---
+
 ## 👤 Perfiles de bailarines
 
 - **Foto de perfil** — subir foto o tomar con cámara. Aparece en el bracket y en el leaderboard.

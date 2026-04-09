@@ -1,0 +1,40 @@
+# Supabase CLI config for ClashPro
+# Ref: https://supabase.com/docs/guides/cli/config
+#
+# Contexto MVP: usamos un solo proyecto remoto (no local Docker).
+# Para desarrollo se conecta directamente al proyecto en Supabase Cloud.
+# Flujo de trabajo:
+#   1. supabase link --project-ref gxweakeahiofjxocoavo  (ya está en .temp/)
+#   2. Escribir nueva migración en supabase/migrations/
+#   3. npm run db:push  →  aplica las migraciones pendientes al proyecto remoto
+#   4. npm run db:diff  →  compara schema local vs remoto (útil para detectar drift)
+
+project_id = "clash-pro"
+
+[db]
+# Versión mayor de PostgreSQL del proyecto (ver .temp/postgres-version)
+major_version = 17
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+# URL del sitio en local dev (ajustar si usas un puerto diferente)
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "https://clash-pro.vercel.app"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+[studio]
+enabled = true
+port = 54323
