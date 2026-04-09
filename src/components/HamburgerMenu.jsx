@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   X, LogOut, Tag, Coffee, ChevronRight, CheckCircle, AlertCircle, ImagePlus, History,
+  BookOpen, Star, Dumbbell,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { usePlan } from '../hooks/usePlan'
@@ -19,7 +20,7 @@ function fileToBase64(file) {
   })
 }
 
-export default function HamburgerMenu({ onClose, onOpenTournamentHistory }) {
+export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { planLabel, isPro, hasHistory } = usePlan()
 
@@ -223,6 +224,47 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory }) {
               </div>
               <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
             </button>
+          )}
+
+          {onOpenGuia && (
+            <button
+              type="button"
+              onClick={onOpenGuia}
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+            >
+              <div className="flex items-center gap-2.5">
+                <Dumbbell size={16} className="text-orange-400" />
+                <p className="text-white text-sm font-medium">Práctica Guiada</p>
+              </div>
+              <ChevronRight size={14} className="text-zinc-600 group-hover:text-orange-400 transition-colors" />
+            </button>
+          )}
+
+          {onOpenBlog && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => onOpenBlog('conocimiento')}
+                className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <BookOpen size={16} className="text-red-400" />
+                  <p className="text-white text-sm font-medium">Base de Conocimiento</p>
+                </div>
+                <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenBlog('buenas-practicas')}
+                className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Star size={16} className="text-red-400" />
+                  <p className="text-white text-sm font-medium">Buenas Prácticas</p>
+                </div>
+                <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
+              </button>
+            </div>
           )}
 
           <a

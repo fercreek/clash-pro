@@ -7,6 +7,9 @@ import SpotifyPlayer from './components/SpotifyPlayer'
 import AuthScreen from './components/AuthScreen'
 import HamburgerMenu from './components/HamburgerMenu'
 import TournamentHistoryModal from './components/TournamentHistoryModal'
+import BlogScreen from './components/BlogScreen'
+import BlogPostScreen from './components/BlogPostScreen'
+import GuiaScreen from './components/GuiaScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
 import { saveTournamentArchive } from './lib/tournamentArchives'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
@@ -29,6 +32,9 @@ const SCREENS = {
   MATCHES: 'matches',
   BATTLE: 'battle',
   LEADERBOARD: 'leaderboard',
+  BLOG: 'blog',
+  BLOG_POST: 'blog_post',
+  GUIA: 'guia',
 }
 
 function computeBootState() {
@@ -66,9 +72,21 @@ function AppShell() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [navImgBroken, setNavImgBroken] = useState(false)
   const [nowPlaying, setNowPlaying] = useState(null)
+  const [blogSlug, setBlogSlug]     = useState(() => {
+    const path = window.location.pathname
+    if (path.startsWith('/blog/')) return path.replace('/blog/', '')
+    return null
+  })
+  const [blogFilter, setBlogFilter] = useState(null)
   const spotifyRef = useRef(null)
   const [boot] = useState(computeBootState)
-  const [screen, setScreen] = useState(boot.screen)
+  const [screen, setScreen] = useState(() => {
+    const path = window.location.pathname
+    if (path.startsWith('/blog/')) return SCREENS.BLOG_POST
+    if (path === '/blog') return SCREENS.BLOG
+    if (path === '/guia') return SCREENS.GUIA
+    return boot.screen
+  })
   const [competitors, setCompetitors] = useState(boot.competitors)
   const [roundTime, setRoundTime] = useState(boot.roundTime)
   const [matches, setMatches] = useState(boot.matches)
@@ -88,11 +106,30 @@ function AppShell() {
         if (cur === SCREENS.BATTLE) { setActiveMatchId(null); return SCREENS.MATCHES }
         if (cur === SCREENS.LEADERBOARD) return SCREENS.MATCHES
         if (cur === SCREENS.MATCHES) return SCREENS.SETUP
+        if (cur === SCREENS.BLOG_POST) return SCREENS.BLOG
+        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA) return SCREENS.SETUP
         return cur
       })
     }
     window.addEventListener('popstate', handlePop)
     return () => window.removeEventListener('popstate', handlePop)
+  }, [])
+
+  const goToBlog = useCallback((filter = null) => {
+    window.history.pushState({ screen: SCREENS.BLOG }, '', '/blog')
+    setScreen(SCREENS.BLOG)
+    setBlogFilter(filter)
+  }, [])
+
+  const goToBlogPost = useCallback((slug) => {
+    window.history.pushState({ screen: SCREENS.BLOG_POST, slug }, '', `/blog/${slug}`)
+    setScreen(SCREENS.BLOG_POST)
+    setBlogSlug(slug)
+  }, [])
+
+  const goToGuia = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.GUIA }, '', '/guia')
+    setScreen(SCREENS.GUIA)
   }, [])
 
   const onTournamentLoaded = useCallback((payload) => {
@@ -307,6 +344,8 @@ function AppShell() {
               setMenuOpen(false)
               setHistoryOpen(true)
             }}
+            onOpenBlog={(filter) => { setMenuOpen(false); goToBlog(filter) }}
+            onOpenGuia={() => { setMenuOpen(false); goToGuia() }}
           />
         )}
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
@@ -359,6 +398,25 @@ function AppShell() {
               showConfetti={lbShowConfetti}
               showRichWhatsApp={lbShowRichWa}
             />
+          )}
+
+          {screen === SCREENS.BLOG && (
+            <BlogScreen
+              filter={blogFilter}
+              onPostClick={goToBlogPost}
+              onBack={() => { window.history.back() }}
+            />
+          )}
+
+          {screen === SCREENS.BLOG_POST && blogSlug && (
+            <BlogPostScreen
+              slug={blogSlug}
+              onBack={() => { window.history.back() }}
+            />
+          )}
+
+          {screen === SCREENS.GUIA && (
+            <GuiaScreen onBack={() => { window.history.back() }} />
           )}
         </main>
       </div>

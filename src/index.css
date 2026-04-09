@@ -12,3 +12,25 @@ body {
   color: white;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* ── Blog / artículo markdown ───────────────────────────────────────────── */
+.prose-salsa h1 { font-size: 1.5rem; font-weight: 900; margin-bottom: 1rem; line-height: 1.2; color: #fff; }
+.prose-salsa h2 { font-size: 1.15rem; font-weight: 800; margin-top: 2rem; margin-bottom: 0.6rem; color: #f4f4f5; border-bottom: 1px solid #27272a; padding-bottom: 0.4rem; }
+.prose-salsa h3 { font-size: 1rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.4rem; color: #e4e4e7; }
+.prose-salsa p  { font-size: 0.9rem; line-height: 1.7; color: #a1a1aa; margin-bottom: 0.9rem; }
+.prose-salsa strong { color: #f4f4f5; font-weight: 700; }
+.prose-salsa em { color: #d4d4d8; font-style: italic; }
+.prose-salsa ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.9rem; }
+.prose-salsa ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.9rem; }
+.prose-salsa li { font-size: 0.9rem; line-height: 1.6; color: #a1a1aa; margin-bottom: 0.25rem; }
+.prose-salsa li strong { color: #f4f4f5; }
+.prose-salsa a  { color: #f87171; text-decoration: underline; }
+.prose-salsa hr { border-color: #27272a; margin: 1.5rem 0; }
+.prose-salsa code { background: #27272a; color: #fb923c; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.8em; }
+.prose-salsa pre { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 1rem; overflow-x: auto; margin-bottom: 1rem; }
+.prose-salsa pre code { background: none; color: #a1a1aa; padding: 0; font-size: 0.82rem; }
+.prose-salsa blockquote { border-left: 3px solid #ef4444; padding-left: 1rem; margin-left: 0; color: #71717a; font-style: italic; }
+.prose-salsa table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.85rem; }
+.prose-salsa th { text-align: left; padding: 0.5rem 0.75rem; background: #18181b; color: #d4d4d8; font-weight: 700; border-bottom: 2px solid #27272a; }
+.prose-salsa td { padding: 0.5rem 0.75rem; color: #a1a1aa; border-bottom: 1px solid #27272a; }
+.prose-salsa tr:last-child td { border-bottom: none; }
