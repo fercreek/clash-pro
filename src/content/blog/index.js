@@ -54,6 +54,13 @@ export const POSTS = [
     category: 'conocimiento',
     excerpt: 'Línea de tiempo real con hitos claros. Saber dónde estás te ayuda a entrenar con propósito.',
   },
+  {
+    slug: 'planeacion-clase-impro',
+    title: 'Plan de Clase: Salsa Impro — Básicos y Remates',
+    date: '2026-04-14',
+    category: 'buenas-practicas',
+    excerpt: 'Estructura de sesión de Williams & Edmundo: calentamiento, repertorio de básicos, trabajo de remates e improvisación. Con reglas y objetivos por actividad.',
+  },
 ]
 
 /** Carga el markdown de un artículo por slug */
