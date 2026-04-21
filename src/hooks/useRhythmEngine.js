@@ -42,7 +42,8 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
     INSTRUMENTS.forEach(({ id }) => {
       if (!p[id]?.[step]) return
       if (mutedRef.current[id]) return
-      INSTRUMENT_SYNTHS[id]?.(ctx, scheduledTime)
+      const ht = Math.max(ctx.currentTime, scheduledTime + (Math.random() - 0.5) * 0.005)
+      INSTRUMENT_SYNTHS[id]?.(ctx, ht)
     })
   }, [])
 
