@@ -91,6 +91,7 @@ function AppShell() {
     if (path === '/blog') return SCREENS.BLOG
     if (path === '/practice') return SCREENS.GUIA
     if (path === '/patterns') return SCREENS.PATTERNS
+    if (path === '/dashboard') return SCREENS.DASHBOARD
     return boot.screen === SCREENS.SETUP ? SCREENS.DASHBOARD : boot.screen
   })
   const [competitors, setCompetitors] = useState(boot.competitors)
@@ -192,6 +193,14 @@ function AppShell() {
   }, [profile?.photo_url])
 
   useEffect(() => {
+    if (!user) return
+    const path = window.location.pathname
+    if (path === '/' || path === '') {
+      window.history.replaceState({ screen: SCREENS.DASHBOARD }, '', '/dashboard')
+    }
+  }, [user])
+
+  useEffect(() => {
     if (profile == null) return
     if (isFree && competitionMode === COMPETITION_MODE.tournament) {
       setCompetitionMode(COMPETITION_MODE.practice)
@@ -258,7 +267,10 @@ function AppShell() {
     goTo(SCREENS.MATCHES)
   }, [goTo])
 
-  const goToDashboard = useCallback(() => goTo(SCREENS.DASHBOARD), [goTo])
+  const goToDashboard = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.DASHBOARD }, '', '/dashboard')
+    setScreen(SCREENS.DASHBOARD)
+  }, [])
 
   const handleDashboardTournament = useCallback(() => {
     setCompetitionMode(COMPETITION_MODE.tournament)
