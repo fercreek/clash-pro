@@ -10,6 +10,7 @@ import TournamentHistoryModal from './components/TournamentHistoryModal'
 import BlogScreen from './components/BlogScreen'
 import BlogPostScreen from './components/BlogPostScreen'
 import GuiaScreen from './components/GuiaScreen'
+import PatternsScreen from './components/PatternsScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
 import { saveTournamentArchive } from './lib/tournamentArchives'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
@@ -35,6 +36,7 @@ const SCREENS = {
   BLOG: 'blog',
   BLOG_POST: 'blog_post',
   GUIA: 'guia',
+  PATTERNS: 'patterns',
 }
 
 function computeBootState() {
@@ -85,6 +87,7 @@ function AppShell() {
     if (path.startsWith('/blog/')) return SCREENS.BLOG_POST
     if (path === '/blog') return SCREENS.BLOG
     if (path === '/guia') return SCREENS.GUIA
+    if (path === '/patterns') return SCREENS.PATTERNS
     return boot.screen
   })
   const [competitors, setCompetitors] = useState(boot.competitors)
@@ -107,7 +110,7 @@ function AppShell() {
         if (cur === SCREENS.LEADERBOARD) return SCREENS.MATCHES
         if (cur === SCREENS.MATCHES) return SCREENS.SETUP
         if (cur === SCREENS.BLOG_POST) return SCREENS.BLOG
-        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA) return SCREENS.SETUP
+        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS) return SCREENS.SETUP
         return cur
       })
     }
@@ -130,6 +133,11 @@ function AppShell() {
   const goToGuia = useCallback(() => {
     window.history.pushState({ screen: SCREENS.GUIA }, '', '/guia')
     setScreen(SCREENS.GUIA)
+  }, [])
+
+  const goToPatterns = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.PATTERNS }, '', '/patterns')
+    setScreen(SCREENS.PATTERNS)
   }, [])
 
   const onTournamentLoaded = useCallback((payload) => {
@@ -346,6 +354,7 @@ function AppShell() {
             }}
             onOpenBlog={(filter) => { setMenuOpen(false); goToBlog(filter) }}
             onOpenGuia={() => { setMenuOpen(false); goToGuia() }}
+            onOpenPatterns={() => { setMenuOpen(false); goToPatterns() }}
           />
         )}
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
@@ -417,6 +426,10 @@ function AppShell() {
 
           {screen === SCREENS.GUIA && (
             <GuiaScreen onBack={() => { window.history.back() }} />
+          )}
+
+          {screen === SCREENS.PATTERNS && (
+            <PatternsScreen onBack={() => { window.history.back() }} />
           )}
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { INSTRUMENTS, PATTERNS, DEFAULT_BPM } from '../data/rhythmPatterns'
+import { INSTRUMENTS, DEFAULT_BPM } from '../data/rhythmPatterns'
 
 const STEPS = 16
 
@@ -8,24 +8,23 @@ function getAudioContext() {
   return Ctx ? new Ctx() : null
 }
 
-export function useRhythmEngine() {
+export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM) {
   const ctxRef       = useRef(null)
   const timerRef     = useRef(null)
   const stepRef      = useRef(0)
-  const bpmRef       = useRef(DEFAULT_BPM)
-  const patternRef   = useRef('basic')
-  const mutedRef     = useRef({})        // { instrumentId: boolean }
+  const bpmRef       = useRef(initialBpm)
+  const patternRef   = useRef(initialPattern)
+  const mutedRef     = useRef({})
   const isPlayingRef = useRef(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
-  const [bpm, setBpmState] = useState(DEFAULT_BPM)
-  const [patternKey, setPatternKey] = useState('basic')
-  const [muted, setMuted] = useState({})   // reactive copy of mutedRef
+  const [bpm, setBpmState] = useState(initialBpm)
+  const [pattern, setPatternState] = useState(initialPattern)
+  const [muted, setMuted] = useState({})
 
-  // Keep refs in sync
   useEffect(() => { bpmRef.current = bpm }, [bpm])
-  useEffect(() => { patternRef.current = patternKey }, [patternKey])
+  useEffect(() => { patternRef.current = pattern }, [pattern])
   useEffect(() => { mutedRef.current = muted }, [muted])
 
   const ensureCtx = useCallback(() => {
@@ -37,11 +36,11 @@ export function useRhythmEngine() {
   const playStep = useCallback((step, scheduledTime) => {
     const ctx = ctxRef.current
     if (!ctx) return
-    const pattern = PATTERNS[patternRef.current]
-    if (!pattern) return
+    const p = patternRef.current
+    if (!p) return
 
     INSTRUMENTS.forEach(({ id, freq, type, gain, dur }) => {
-      if (!pattern[id]?.[step]) return
+      if (!p[id]?.[step]) return
       if (mutedRef.current[id]) return
 
       const osc  = ctx.createOscillator()
@@ -61,8 +60,8 @@ export function useRhythmEngine() {
     const ctx = ctxRef.current
     if (!ctx || !isPlayingRef.current) return
 
-    const secondsPerStep = 60 / bpmRef.current / 4  // 16 steps per bar = 4 per beat
-    const lookAhead = 0.1   // schedule 100ms ahead
+    const secondsPerStep = 60 / bpmRef.current / 4
+    const lookAhead = 0.1
     const scheduleTime = ctx.currentTime
 
     let step = stepRef.current
@@ -82,6 +81,7 @@ export function useRhythmEngine() {
   const start = useCallback(() => {
     const ctx = ensureCtx()
     if (!ctx) return
+    if (!patternRef.current) return
     isPlayingRef.current = true
     stepRef.current = 0
     setIsPlaying(true)
@@ -105,20 +105,14 @@ export function useRhythmEngine() {
     setBpmState(Math.max(50, Math.min(160, val)))
   }, [])
 
-  const setPattern = useCallback((key) => {
-    setPatternKey(key)
-    if (isPlayingRef.current) {
-      // restart to apply new pattern immediately
-      stop()
-      setTimeout(start, 50)
-    }
-  }, [stop, start])
+  const setPattern = useCallback((next) => {
+    setPatternState(next)
+  }, [])
 
   const toggleMute = useCallback((id) => {
     setMuted((prev) => ({ ...prev, [id]: !prev[id] }))
   }, [])
 
-  // Cleanup on unmount
   useEffect(() => () => {
     isPlayingRef.current = false
     clearTimeout(timerRef.current)
@@ -128,12 +122,15 @@ export function useRhythmEngine() {
     isPlaying,
     currentStep,
     bpm,
-    patternKey,
+    pattern,
     muted,
     toggle,
+    start,
+    stop,
     setBpm,
     setPattern,
     toggleMute,
+    ensureCtx,
     STEPS,
   }
 }

@@ -226,10 +226,16 @@ function RoutineRunner({ routine, onBack }) {
 
 // ── Rhythm Trainer ────────────────────────────────────────────────────────────
 function RhythmTrainer() {
+  const [patternKey, setPatternKey] = useState('basic')
   const {
-    isPlaying, currentStep, bpm, patternKey, muted,
+    isPlaying, currentStep, bpm, muted,
     toggle, setBpm, setPattern, toggleMute, STEPS,
-  } = useRhythmEngine()
+  } = useRhythmEngine(PATTERNS[patternKey])
+
+  const switchPattern = useCallback((key) => {
+    setPatternKey(key)
+    setPattern(PATTERNS[key])
+  }, [setPattern])
 
   return (
     <div className="px-4 py-4 space-y-5">
@@ -240,7 +246,7 @@ function RhythmTrainer() {
             <button
               key={key}
               type="button"
-              onClick={() => setPattern(key)}
+              onClick={() => switchPattern(key)}
               className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors ${
                 patternKey === key
                   ? 'bg-red-500/20 border-red-500/50 text-red-400'

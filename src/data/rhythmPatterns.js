@@ -45,3 +45,12 @@ export const PATTERNS = {
 export const DEFAULT_BPM = 90
 export const MIN_BPM = 50
 export const MAX_BPM = 160
+
+export const STEPS_PER_PATTERN = 16
+
+export function emptyPattern() {
+  return INSTRUMENTS.reduce((acc, inst) => {
+    acc[inst.id] = Array(STEPS_PER_PATTERN).fill(0)
+    return acc
+  }, {})
+}

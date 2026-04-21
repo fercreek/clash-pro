@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   X, LogOut, Tag, Coffee, ChevronRight, CheckCircle, AlertCircle, ImagePlus, History,
-  BookOpen, Star, Dumbbell,
+  BookOpen, Star, Dumbbell, Music2,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { usePlan } from '../hooks/usePlan'
@@ -20,7 +20,7 @@ function fileToBase64(file) {
   })
 }
 
-export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia }) {
+export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia, onOpenPatterns }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { planLabel, isPro, hasHistory } = usePlan()
 
@@ -237,6 +237,20 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
                 <p className="text-white text-sm font-medium">Práctica Guiada</p>
               </div>
               <ChevronRight size={14} className="text-zinc-600 group-hover:text-orange-400 transition-colors" />
+            </button>
+          )}
+
+          {onOpenPatterns && (
+            <button
+              type="button"
+              onClick={onOpenPatterns}
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+            >
+              <div className="flex items-center gap-2.5">
+                <Music2 size={16} className="text-red-400" />
+                <p className="text-white text-sm font-medium">Mis Patrones</p>
+              </div>
+              <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
             </button>
           )}
 
