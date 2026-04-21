@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ChevronLeft, Plus, Trash2, Edit3, Copy, Play, Pause, Save,
-  Eraser, Music2, VolumeX, Circle, Square, AlertCircle, BookOpen,
+  Eraser, Music2, VolumeX, Circle, Square, AlertCircle, BookOpen, Sparkles,
 } from 'lucide-react'
 import {
   INSTRUMENTS, MIN_BPM, MAX_BPM, DEFAULT_BPM, STEPS_PER_PATTERN,
@@ -10,206 +10,290 @@ import {
 import { useRhythmEngine } from '../hooks/useRhythmEngine'
 import { listPatterns, savePattern, deletePattern } from '../lib/customPatterns'
 
-// ── Mini grid (read-only) ─────────────────────────────────────────────────────
-function MiniGrid({ pattern, currentStep = -1, isPlaying = false }) {
+function MiniGrid({ pattern, currentStep = -1, isPlaying = false, compact = false }) {
+  const rowH = compact ? 'h-1.5' : 'h-2.5'
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-1">
       {INSTRUMENTS.map((inst) => (
-        <div key={inst.id} className="flex gap-0.5">
-          {(pattern?.[inst.id] ?? Array(STEPS_PER_PATTERN).fill(0)).map((hit, i) => (
-            <div
-              key={i}
-              className={`flex-1 h-1.5 rounded-sm transition-colors ${
-                hit
-                  ? i === currentStep && isPlaying ? 'bg-red-400' : 'bg-red-500/70'
-                  : i === currentStep && isPlaying ? 'bg-zinc-600' : 'bg-zinc-800'
-              }`}
-            />
-          ))}
+        <div key={inst.id} className="flex items-center gap-1.5">
+          {!compact && (
+            <span className="w-14 shrink-0 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+              {inst.label.slice(0, 6)}
+            </span>
+          )}
+          <div className="flex-1 flex gap-[2px]">
+            {(pattern?.[inst.id] ?? Array(STEPS_PER_PATTERN).fill(0)).map((hit, i) => {
+              const isBeat = i % 4 === 0
+              const isCur = i === currentStep && isPlaying
+              return (
+                <div
+                  key={i}
+                  className={`flex-1 ${rowH} rounded-[2px] transition-colors ${
+                    hit
+                      ? isCur ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]' : 'bg-red-500'
+                      : isCur
+                        ? 'bg-zinc-600'
+                        : isBeat ? 'bg-zinc-800' : 'bg-zinc-900'
+                  }`}
+                />
+              )
+            })}
+          </div>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Reference pattern card ────────────────────────────────────────────────────
 function RefPatternCard({ data, onUseAsBase, onOpenBlogPost }) {
   const { isPlaying, currentStep, toggle } = useRhythmEngine(data.pattern, data.bpm)
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <p className="text-white font-semibold text-sm">{data.label}</p>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-zinc-700 text-zinc-400 uppercase tracking-wide shrink-0">
+    <div className={`group relative bg-gradient-to-br from-zinc-900 to-zinc-900/60 border rounded-2xl p-4 transition-all ${
+      isPlaying ? 'border-red-500/50 shadow-[0_0_0_1px_rgba(239,68,68,0.3)]' : 'border-zinc-800 hover:border-zinc-700'
+    }`}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-white font-black text-base leading-tight">{data.label}</h3>
+            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 uppercase tracking-widest border border-red-500/20 shrink-0">
               Ref
             </span>
           </div>
-          <p className="text-zinc-400 text-xs leading-snug">{data.description}</p>
+          <p className="text-zinc-400 text-xs leading-relaxed">{data.description}</p>
         </div>
-        <span className="text-zinc-500 text-xs tabular-nums shrink-0">{data.bpm} BPM</span>
+        <div className="flex flex-col items-end shrink-0">
+          <span className="text-white font-black text-lg tabular-nums leading-none">{data.bpm}</span>
+          <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">bpm</span>
+        </div>
       </div>
 
-      <MiniGrid pattern={data.pattern} currentStep={currentStep} isPlaying={isPlaying} />
-
-      <p className="text-zinc-600 text-[10px] leading-snug italic">{data.credit}</p>
+      <div className="bg-black/40 rounded-lg p-2.5 mb-3 border border-zinc-900">
+        <MiniGrid pattern={data.pattern} currentStep={currentStep} isPlaying={isPlaying} />
+      </div>
 
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={toggle}
-          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-lg transition-colors ${
+          className={`flex items-center justify-center gap-1.5 text-xs font-bold w-11 h-11 rounded-xl transition-all shrink-0 ${
             isPlaying
-              ? 'bg-zinc-800 text-white'
-              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+              ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+              : 'bg-zinc-800 hover:bg-zinc-700 text-white'
           }`}
+          aria-label={isPlaying ? 'Parar' : 'Preview'}
         >
-          {isPlaying ? <><Pause size={13} /> Parar</> : <><Play size={13} fill="currentColor" /> Preview</>}
+          {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
         </button>
 
         <button
           type="button"
           onClick={() => onUseAsBase({ name: data.label, bpm: data.bpm, pattern: data.pattern })}
-          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold h-11 rounded-xl bg-red-600 hover:bg-red-500 text-white transition-colors"
         >
-          <Copy size={13} /> Usar como base
+          <Copy size={14} /> Usar como base
         </button>
 
         {data.blogSlug && onOpenBlogPost && (
           <button
             type="button"
             onClick={() => onOpenBlogPost(data.blogSlug)}
-            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-2.5"
+            className="flex items-center justify-center w-11 h-11 rounded-xl text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors shrink-0"
             title="Leer artículo"
+            aria-label="Leer artículo"
           >
-            <BookOpen size={13} /> Artículo
+            <BookOpen size={16} />
           </button>
         )}
       </div>
+
+      {data.credit && (
+        <p className="text-zinc-600 text-[10px] leading-snug mt-3 pt-3 border-t border-zinc-900">
+          {data.credit}
+        </p>
+      )}
     </div>
   )
 }
 
-// ── Library view ──────────────────────────────────────────────────────────────
-function Library({ items, loading, error, onNew, onEdit, onDuplicate, onDelete, onUseAsBase, onOpenBlogPost }) {
-  const [confirmId, setConfirmId] = useState(null)
-
+function CustomCard({ item, onEdit, onDuplicate, onDelete, confirmOpen, onToggleConfirm }) {
   return (
-    <div className="px-4 py-4 space-y-6">
-      <button
-        type="button"
-        onClick={onNew}
-        className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-2xl transition-colors"
-      >
-        <Plus size={18} /> Nuevo patrón
-      </button>
-
-      {/* Patrones de referencia */}
-      <div className="space-y-2">
-        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Patrones de referencia</p>
-        {REFERENCE_PATTERNS.map((ref) => (
-          <RefPatternCard
-            key={ref.id}
-            data={ref}
-            onUseAsBase={onUseAsBase}
-            onOpenBlogPost={onOpenBlogPost}
-          />
-        ))}
-      </div>
-
-      {/* Mis patrones */}
-      <div className="space-y-2">
-        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Mis patrones</p>
-
-        {error && (
-          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
-            <AlertCircle size={14} /> {error}
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex justify-center py-6">
-            <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-
-        {!loading && items.length === 0 && !error && (
-          <div className="text-center py-6 text-zinc-500 text-sm">
-            <Music2 size={28} className="mx-auto mb-2 text-zinc-700" />
-            Aún no tienes patrones guardados.<br />
-            Crea uno o usa un patrón de referencia como base.
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {items.map((it) => (
-            <div key={it.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">{it.name}</p>
-                  <p className="text-zinc-500 text-[11px]">{it.bpm} BPM</p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(it)}
-                    className="p-3 text-zinc-400 hover:text-red-400 transition-colors"
-                    title="Editar"
-                  >
-                    <Edit3 size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDuplicate(it)}
-                    className="p-3 text-zinc-400 hover:text-red-400 transition-colors"
-                    title="Duplicar"
-                  >
-                    <Copy size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmId(confirmId === it.id ? null : it.id)}
-                    className="p-3 text-zinc-400 hover:text-red-400 transition-colors"
-                    title="Borrar"
-                  >
-                    <Trash2 size={17} />
-                  </button>
-                </div>
-              </div>
-
-              <MiniGrid pattern={it.pattern} />
-
-              {confirmId === it.id && (
-                <div className="mt-3 flex items-center justify-between gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                  <span className="text-red-300 text-xs">¿Borrar "{it.name}"?</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmId(null)}
-                      className="text-zinc-400 text-xs px-2 py-1"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { onDelete(it.id); setConfirmId(null) }}
-                      className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-lg"
-                    >
-                      Borrar
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+    <div className="bg-gradient-to-br from-zinc-900 to-zinc-900/60 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-white font-black text-base truncate">{item.name}</h3>
+          <p className="text-zinc-500 text-[11px] font-semibold tabular-nums">{item.bpm} BPM</p>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => onEdit(item)}
+            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+            title="Editar"
+            aria-label="Editar"
+          >
+            <Edit3 size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDuplicate(item)}
+            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+            title="Duplicar"
+            aria-label="Duplicar"
+          >
+            <Copy size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleConfirm}
+            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            title="Borrar"
+            aria-label="Borrar"
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       </div>
+
+      <div className="bg-black/40 rounded-lg p-2.5 border border-zinc-900">
+        <MiniGrid pattern={item.pattern} />
+      </div>
+
+      {confirmOpen && (
+        <div className="mt-3 flex items-center justify-between gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+          <span className="text-red-300 text-xs font-semibold truncate">¿Borrar "{item.name}"?</span>
+          <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={onToggleConfirm}
+              className="text-zinc-400 hover:text-white text-xs font-bold px-2 py-1"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(item.id)}
+              className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
+            >
+              Borrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Editor view ───────────────────────────────────────────────────────────────
+function Library({ items, loading, error, onNew, onEdit, onDuplicate, onDelete, onUseAsBase, onOpenBlogPost }) {
+  const [confirmId, setConfirmId] = useState(null)
+  const [tab, setTab] = useState('ref')
+
+  return (
+    <div className="px-4 py-5 space-y-5 pb-8">
+      <div className="bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border border-red-500/20 rounded-2xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+            <Sparkles size={18} className="text-red-400" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-white font-black text-base leading-tight mb-0.5">Secuenciador de ritmos</h2>
+            <p className="text-zinc-400 text-xs leading-relaxed">
+              Aprende los patrones fundamentales o crea los tuyos. Toca play en cualquier referencia para escucharla.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+        <button
+          type="button"
+          onClick={() => setTab('ref')}
+          className={`flex-1 text-xs font-bold py-2.5 rounded-lg transition-all ${
+            tab === 'ref' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          Referencia
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('mine')}
+          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-2.5 rounded-lg transition-all ${
+            tab === 'mine' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          Mis patrones
+          {items.length > 0 && (
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 tabular-nums">
+              {items.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {tab === 'ref' && (
+        <div className="space-y-3">
+          {REFERENCE_PATTERNS.map((ref) => (
+            <RefPatternCard
+              key={ref.id}
+              data={ref}
+              onUseAsBase={onUseAsBase}
+              onOpenBlogPost={onOpenBlogPost}
+            />
+          ))}
+        </div>
+      )}
+
+      {tab === 'mine' && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={onNew}
+            className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-2xl transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus size={18} /> Nuevo patrón
+          </button>
+
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2.5">
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!loading && items.length === 0 && !error && (
+            <div className="text-center py-12 px-6 bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-zinc-800/50 flex items-center justify-center">
+                <Music2 size={24} className="text-zinc-600" />
+              </div>
+              <p className="text-zinc-300 font-bold text-sm mb-1">Aún no tienes patrones</p>
+              <p className="text-zinc-500 text-xs leading-relaxed max-w-xs mx-auto">
+                Crea uno desde cero o toma un patrón de referencia como base.
+              </p>
+            </div>
+          )}
+
+          {items.map((it) => (
+            <CustomCard
+              key={it.id}
+              item={it}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              confirmOpen={confirmId === it.id}
+              onToggleConfirm={() => setConfirmId(confirmId === it.id ? null : it.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Editor({ initial, onCancel, onSaved }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [draft, setDraft] = useState(() => initial?.pattern ?? emptyPattern())
@@ -337,25 +421,46 @@ function Editor({ initial, onCancel, onSaved }) {
   }, [name, editorBpm, draft, initial?.id, isPlaying, stop, onSaved])
 
   return (
-    <div className="px-4 py-4 space-y-5 pb-32">
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre del patrón"
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-red-500"
-      />
-
+    <div className="px-4 py-5 space-y-5 pb-32">
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Tempo</p>
-          <span className="text-white font-black text-lg tabular-nums">{bpm} BPM</span>
+        <label className="block text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1.5">Nombre</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Mi tumbao favorito"
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-3 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all"
+        />
+      </div>
+
+      <div className="bg-gradient-to-br from-zinc-900 to-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest">Tempo</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-white font-black text-3xl tabular-nums leading-none">{bpm}</span>
+              <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest">bpm</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={recording}
+            className={`flex items-center gap-2 text-sm font-bold px-5 h-11 rounded-xl transition-all ${
+              isPlaying
+                ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+                : 'bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 disabled:cursor-not-allowed'
+            }`}
+          >
+            {isPlaying ? <><Pause size={14} fill="currentColor" /> Parar</> : <><Play size={14} fill="currentColor" /> Play</>}
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setEditorBpm(Math.max(MIN_BPM, editorBpm - 5))}
-            className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white font-bold text-lg shrink-0"
+            className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-lg text-white font-bold text-xl shrink-0"
+            aria-label="Bajar BPM"
           >−</button>
           <input
             type="range"
@@ -368,29 +473,15 @@ function Editor({ initial, onCancel, onSaved }) {
           <button
             type="button"
             onClick={() => setEditorBpm(Math.min(MAX_BPM, editorBpm + 5))}
-            className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white font-bold text-lg shrink-0"
+            className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-lg text-white font-bold text-xl shrink-0"
+            aria-label="Subir BPM"
           >+</button>
         </div>
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Pasos</p>
-          <button
-            type="button"
-            onClick={toggle}
-            disabled={recording}
-            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
-              isPlaying
-                ? 'bg-zinc-800 text-white'
-                : 'bg-red-600 hover:bg-red-500 text-white disabled:opacity-40'
-            }`}
-          >
-            {isPlaying ? <><Pause size={12} /> Parar</> : <><Play size={12} fill="currentColor" /> Play</>}
-          </button>
-        </div>
-
-        <div className="space-y-1.5">
+        <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-2">Pasos</p>
+        <div className="bg-black/40 border border-zinc-900 rounded-2xl p-3 space-y-1.5">
           {INSTRUMENTS.map((inst) => {
             const row = draft[inst.id] ?? Array(STEPS_PER_PATTERN).fill(0)
             const isMuted = muted[inst.id]
@@ -399,29 +490,35 @@ function Editor({ initial, onCancel, onSaved }) {
                 <button
                   type="button"
                   onClick={() => toggleMute(inst.id)}
-                  className={`w-14 h-10 shrink-0 text-[10px] font-bold rounded-lg border transition-colors ${
+                  className={`w-14 h-10 shrink-0 text-[10px] font-black rounded-lg border transition-all ${
                     isMuted
-                      ? 'border-zinc-700 bg-zinc-800 text-zinc-600'
-                      : 'border-red-500/50 bg-red-500/10 text-red-400'
+                      ? 'border-zinc-800 bg-zinc-900 text-zinc-600'
+                      : 'border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20'
                   }`}
+                  aria-label={`${isMuted ? 'Unmute' : 'Mute'} ${inst.label}`}
                 >
-                  {isMuted ? <VolumeX size={13} className="mx-auto" /> : inst.label.slice(0, 5)}
+                  {isMuted ? <VolumeX size={13} className="mx-auto" /> : inst.label.slice(0, 5).toUpperCase()}
                 </button>
-                <div className="flex-1 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${STEPS_PER_PATTERN}, 1fr)` }}>
+                <div className="flex-1 grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${STEPS_PER_PATTERN}, 1fr)` }}>
                   {row.map((hit, i) => {
                     const isCurrent = i === currentStep && isPlaying
                     const beatMark = i % 4 === 0
+                    const groupEnd = (i + 1) % 4 === 0 && i !== STEPS_PER_PATTERN - 1
                     return (
                       <button
                         key={i}
                         type="button"
                         onClick={() => toggleCell(inst.id, i)}
-                        className={`h-10 rounded-sm transition-colors ${
+                        className={`h-10 rounded-[4px] transition-all ${groupEnd ? 'mr-0.5' : ''} ${
                           hit
-                            ? isCurrent ? 'bg-red-400' : 'bg-red-500/70 hover:bg-red-500'
+                            ? isCurrent
+                              ? 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.6)]'
+                              : 'bg-red-500 hover:bg-red-400'
                             : isCurrent
                               ? 'bg-zinc-600'
-                              : beatMark ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-900 hover:bg-zinc-800'
+                              : beatMark
+                                ? 'bg-zinc-800 hover:bg-zinc-700'
+                                : 'bg-zinc-900 hover:bg-zinc-800'
                         }`}
                         aria-label={`${inst.label} paso ${i + 1}`}
                       />
@@ -434,42 +531,45 @@ function Editor({ initial, onCancel, onSaved }) {
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white text-sm font-bold">Grabar tocando</p>
-            <p className="text-zinc-500 text-[11px]">Tappea los instrumentos al ritmo del metrónomo</p>
+      <div className="bg-gradient-to-br from-zinc-900 to-zinc-900/60 border border-zinc-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-white text-sm font-black">Grabar tocando</p>
+            <p className="text-zinc-500 text-[11px] leading-snug">Tappea los instrumentos al ritmo del metrónomo</p>
           </div>
           {!recording ? (
             <button
               type="button"
               onClick={startRecording}
-              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 rounded-lg"
+              className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3.5 h-10 rounded-xl shrink-0"
             >
-              <Circle size={12} fill="currentColor" /> Grabar
+              <Circle size={11} fill="currentColor" /> Grabar
             </button>
           ) : (
             <button
               type="button"
               onClick={stopRecording}
-              className="flex items-center gap-1.5 bg-zinc-800 text-white text-xs font-bold px-3 py-2 rounded-lg"
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold px-3.5 h-10 rounded-xl shrink-0"
             >
-              <Square size={12} fill="currentColor" /> Parar
+              <Square size={11} fill="currentColor" /> Parar
             </button>
           )}
         </div>
 
         {recording && countIn > 0 && (
-          <div className="text-center py-4">
-            <span className="text-red-400 text-4xl font-black tabular-nums">{countIn}</span>
-            <p className="text-zinc-500 text-xs mt-1">Preparándote…</p>
+          <div className="text-center py-5">
+            <span className="text-red-400 text-5xl font-black tabular-nums leading-none">{countIn}</span>
+            <p className="text-zinc-500 text-xs mt-2 font-semibold">Preparándote…</p>
           </div>
         )}
 
         {recording && countIn === 0 && (
           <>
             <div className="text-center">
-              <span className="text-red-400 text-xs font-bold animate-pulse">● GRABANDO</span>
+              <span className="inline-flex items-center gap-1.5 text-red-400 text-xs font-black tracking-widest">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                GRABANDO
+              </span>
             </div>
             <div className="grid grid-cols-5 gap-1.5">
               {INSTRUMENTS.map((inst) => (
@@ -477,7 +577,7 @@ function Editor({ initial, onCancel, onSaved }) {
                   key={inst.id}
                   type="button"
                   onClick={() => recordTap(inst.id)}
-                  className="bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 border border-red-500/50 text-red-300 text-sm font-bold py-8 rounded-xl transition-colors select-none"
+                  className="bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 border border-red-500/50 text-red-300 text-[11px] font-black py-8 rounded-xl transition-colors select-none uppercase"
                 >
                   {inst.label}
                 </button>
@@ -488,24 +588,25 @@ function Editor({ initial, onCancel, onSaved }) {
       </div>
 
       {saveError && (
-        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2.5">
           <AlertCircle size={14} /> {saveError}
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-zinc-950/95 border-t border-zinc-800 px-4 py-3 flex gap-2">
+      <div className="fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800 px-4 py-3 flex gap-2 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-bold py-3 rounded-xl"
+          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-bold py-3 rounded-xl transition-colors"
         >
           Volver
         </button>
         <button
           type="button"
           onClick={clearAll}
-          className="flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold px-4 py-3 rounded-xl"
+          className="flex items-center justify-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold w-12 py-3 rounded-xl transition-colors"
           title="Limpiar"
+          aria-label="Limpiar"
         >
           <Eraser size={15} />
         </button>
@@ -513,7 +614,7 @@ function Editor({ initial, onCancel, onSaved }) {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-bold py-3 rounded-xl"
+          className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-bold py-3 rounded-xl transition-colors shadow-lg shadow-red-500/20"
         >
           <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
         </button>
@@ -522,7 +623,6 @@ function Editor({ initial, onCancel, onSaved }) {
   )
 }
 
-// ── Root ──────────────────────────────────────────────────────────────────────
 export default function PatternsScreen({ onBack, onOpenBlogPost }) {
   const [view, setView] = useState('library')
   const [editing, setEditing] = useState(null)
@@ -575,19 +675,21 @@ export default function PatternsScreen({ onBack, onOpenBlogPost }) {
 
   return (
     <div className="min-h-full bg-zinc-950">
-      <div className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-3 py-2 flex items-center gap-2">
+      <div className="sticky top-0 z-10 bg-zinc-950/85 backdrop-blur-md border-b border-zinc-800 px-3 py-3 flex items-center gap-2">
         <button
           type="button"
           onClick={view === 'editor' ? handleCancel : onBack}
-          className="p-1.5 text-zinc-400 hover:text-white"
+          className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
           aria-label="Volver"
         >
           <ChevronLeft size={20} />
         </button>
-        <div className="flex items-center gap-2">
-          <Music2 size={16} className="text-red-400" />
-          <h1 className="text-white text-sm font-black">
-            {view === 'editor' ? (editing?.id ? 'Editar patrón' : 'Nuevo patrón') : 'Patrones'}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
+            <Music2 size={14} className="text-red-400" />
+          </div>
+          <h1 className="text-white text-sm font-black truncate">
+            {view === 'editor' ? (editing?.id ? 'Editar patrón' : 'Nuevo patrón') : 'Patrones de salsa'}
           </h1>
         </div>
       </div>

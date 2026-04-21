@@ -11,6 +11,7 @@ import BlogScreen from './components/BlogScreen'
 import BlogPostScreen from './components/BlogPostScreen'
 import GuiaScreen from './components/GuiaScreen'
 import PatternsScreen from './components/PatternsScreen'
+import DashboardScreen from './components/DashboardScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
 import { saveTournamentArchive } from './lib/tournamentArchives'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
@@ -29,6 +30,7 @@ import {
 import { Menu } from 'lucide-react'
 
 const SCREENS = {
+  DASHBOARD: 'dashboard',
   SETUP: 'setup',
   MATCHES: 'matches',
   BATTLE: 'battle',
@@ -43,7 +45,7 @@ function computeBootState() {
   const loaded = loadState()
   if (!loaded) {
     return {
-      screen: SCREENS.SETUP,
+      screen: SCREENS.DASHBOARD,
       competitors: [],
       roundTime: 40,
       matches: [],
@@ -57,8 +59,9 @@ function computeBootState() {
     screen = SCREENS.MATCHES
   }
   const norm = normalizeHydratedScreen(screen, loaded.activeMatchId)
+  const hasActiveMatches = (loaded.matches?.length ?? 0) > 0
   return {
-    screen: norm.screen,
+    screen: hasActiveMatches ? norm.screen : SCREENS.DASHBOARD,
     competitors: loaded.competitors ?? [],
     roundTime: loaded.roundTime,
     matches: loaded.matches,
@@ -88,7 +91,7 @@ function AppShell() {
     if (path === '/blog') return SCREENS.BLOG
     if (path === '/practice') return SCREENS.GUIA
     if (path === '/patterns') return SCREENS.PATTERNS
-    return boot.screen
+    return boot.screen === SCREENS.SETUP ? SCREENS.DASHBOARD : boot.screen
   })
   const [competitors, setCompetitors] = useState(boot.competitors)
   const [roundTime, setRoundTime] = useState(boot.roundTime)
@@ -109,8 +112,9 @@ function AppShell() {
         if (cur === SCREENS.BATTLE) { setActiveMatchId(null); return SCREENS.MATCHES }
         if (cur === SCREENS.LEADERBOARD) return SCREENS.MATCHES
         if (cur === SCREENS.MATCHES) return SCREENS.SETUP
+        if (cur === SCREENS.SETUP) return SCREENS.DASHBOARD
         if (cur === SCREENS.BLOG_POST) return SCREENS.BLOG
-        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS) return SCREENS.SETUP
+        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS) return SCREENS.DASHBOARD
         return cur
       })
     }
@@ -254,14 +258,26 @@ function AppShell() {
     goTo(SCREENS.MATCHES)
   }, [goTo])
 
+  const goToDashboard = useCallback(() => goTo(SCREENS.DASHBOARD), [goTo])
+
+  const handleDashboardTournament = useCallback(() => {
+    setCompetitionMode(COMPETITION_MODE.tournament)
+    goTo(SCREENS.SETUP)
+  }, [goTo])
+
+  const handleDashboardPractice = useCallback(() => {
+    setCompetitionMode(COMPETITION_MODE.practice)
+    goTo(SCREENS.SETUP)
+  }, [goTo])
+
   const handleReset = useCallback(() => {
     archiveCompletedIfNeeded()
     clearState()
     clearRemote()
     setMatches([])
     setActiveMatchId(null)
-    goTo(SCREENS.SETUP)
-  }, [goTo, clearRemote, archiveCompletedIfNeeded])
+    goToDashboard()
+  }, [goToDashboard, clearRemote, archiveCompletedIfNeeded])
 
   const handleNewSession = useCallback(() => {
     archiveCompletedIfNeeded()
@@ -306,24 +322,28 @@ function AppShell() {
             CLASH<span className="text-red-500">PRO</span>
           </span>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap border ${
-                isTournament
-                  ? 'border-amber-500/35 bg-amber-500/10 text-amber-400'
-                  : 'border-zinc-700 bg-zinc-800/80 text-zinc-400'
-              }`}
-              title={isTournament ? 'Competición con resultados' : 'Práctica sin puntos'}
-            >
-              {isTournament ? 'Competición' : 'Práctica'}
-            </span>
-            <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
-                isPro ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-500'
-              }`}
-              title="Tu plan"
-            >
-              {planLabel}
-            </span>
+            {screen !== SCREENS.DASHBOARD && (
+              <span
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap border ${
+                  isTournament
+                    ? 'border-amber-500/35 bg-amber-500/10 text-amber-400'
+                    : 'border-zinc-700 bg-zinc-800/80 text-zinc-400'
+                }`}
+                title={isTournament ? 'Competición con resultados' : 'Práctica sin puntos'}
+              >
+                {isTournament ? 'Competición' : 'Práctica'}
+              </span>
+            )}
+            {screen !== SCREENS.DASHBOARD && (
+              <span
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                  isPro ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-500'
+                }`}
+                title="Tu plan"
+              >
+                {planLabel}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -364,6 +384,18 @@ function AppShell() {
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
 
         <main className="flex-1 overflow-y-auto">
+          {screen === SCREENS.DASHBOARD && (
+            <DashboardScreen
+              profile={profile}
+              isPro={isPro}
+              onStartTournament={handleDashboardTournament}
+              onStartPractice={handleDashboardPractice}
+              onOpenPatterns={() => goToPatterns()}
+              onOpenGuia={() => goToGuia()}
+              onOpenBlog={() => goToBlog()}
+            />
+          )}
+
           {screen === SCREENS.SETUP && (
             <SetupScreen
               initialCompetitors={competitors}

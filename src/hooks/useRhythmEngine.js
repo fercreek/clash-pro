@@ -1,24 +1,17 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { INSTRUMENTS, DEFAULT_BPM, INSTRUMENT_SYNTHS } from '../data/rhythmPatterns'
-import { SAMPLE_URLS } from '../audio/samples'
+import { getCtx, getDestination } from '../audio/ctx'
+import { loadSamples, getBuffer } from '../audio/sampleCache'
 
 const STEPS = 16
 
-function getAudioContext() {
-  const Ctx = window.AudioContext || window.webkitAudioContext
-  return Ctx ? new Ctx() : null
-}
-
 export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM) {
-  const ctxRef            = useRef(null)
   const timerRef          = useRef(null)
   const stepRef           = useRef(0)
   const bpmRef            = useRef(initialBpm)
   const patternRef        = useRef(initialPattern)
   const mutedRef          = useRef({})
   const isPlayingRef      = useRef(false)
-  const buffersRef        = useRef({})
-  const buffersLoadedRef  = useRef(false)
   const nextNoteTimeRef   = useRef(0)
 
   const [isPlaying, setIsPlaying] = useState(false)
@@ -31,35 +24,10 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
   useEffect(() => { patternRef.current = pattern }, [pattern])
   useEffect(() => { mutedRef.current = muted }, [muted])
 
-  const ensureCtx = useCallback(() => {
-    if (!ctxRef.current) ctxRef.current = getAudioContext()
-    if (ctxRef.current?.state === 'suspended') ctxRef.current.resume().catch(() => {})
-    return ctxRef.current
-  }, [])
-
-  const loadSamples = useCallback(async () => {
-    if (buffersLoadedRef.current) return
-    const ctx = ensureCtx()
-    if (!ctx) return
-    buffersLoadedRef.current = true
-    await Promise.all(
-      Object.entries(SAMPLE_URLS).map(async ([id, url]) => {
-        if (buffersRef.current[id]) return
-        try {
-          const resp = await fetch(url)
-          const ab = await resp.arrayBuffer()
-          buffersRef.current[id] = await new Promise((res, rej) =>
-            ctx.decodeAudioData(ab, res, rej)
-          )
-        } catch (e) {
-          console.warn(`Sample failed: ${id}`, e)
-        }
-      })
-    )
-  }, [ensureCtx])
+  const ensureCtx = useCallback(() => getCtx(), [])
 
   const playStep = useCallback((step, scheduledTime) => {
-    const ctx = ctxRef.current
+    const ctx = getCtx()
     if (!ctx) return
     const p = patternRef.current
     if (!p) return
@@ -68,15 +36,17 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
       if (!p[id]?.[step]) return
       if (mutedRef.current[id]) return
       const ht = Math.max(ctx.currentTime, scheduledTime + (Math.random() - 0.5) * 0.005)
+      const dest = getDestination()
+      if (!dest) return
 
-      const buffer = buffersRef.current[id]
+      const buffer = getBuffer(id)
       if (buffer) {
         const src = ctx.createBufferSource()
         src.buffer = buffer
         src.playbackRate.value = 0.95 + Math.random() * 0.10
         const g = ctx.createGain()
         g.gain.setValueAtTime(0.85 + Math.random() * 0.15, ht)
-        src.connect(g); g.connect(ctx.destination)
+        src.connect(g); g.connect(dest)
         src.start(ht)
       } else {
         INSTRUMENT_SYNTHS[id]?.(ctx, ht)
@@ -85,7 +55,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
   }, [])
 
   const scheduleAhead = useCallback(() => {
-    const ctx = ctxRef.current
+    const ctx = getCtx()
     if (!ctx || !isPlayingRef.current) return
 
     const secondsPerStep = 60 / bpmRef.current / 4
@@ -106,7 +76,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
   }, [playStep])
 
   const start = useCallback(() => {
-    const ctx = ensureCtx()
+    const ctx = getCtx()
     if (!ctx) return
     if (!patternRef.current) return
     loadSamples()
@@ -115,7 +85,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
     nextNoteTimeRef.current = ctx.currentTime + 0.05
     setIsPlaying(true)
     scheduleAhead()
-  }, [ensureCtx, scheduleAhead, loadSamples])
+  }, [scheduleAhead])
 
   const stop = useCallback(() => {
     isPlayingRef.current = false
@@ -145,8 +115,6 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
   useEffect(() => () => {
     isPlayingRef.current = false
     clearTimeout(timerRef.current)
-    ctxRef.current?.close().catch(() => {})
-    ctxRef.current = null
   }, [])
 
   return {
