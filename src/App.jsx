@@ -86,7 +86,7 @@ function AppShell() {
     const path = window.location.pathname
     if (path.startsWith('/blog/')) return SCREENS.BLOG_POST
     if (path === '/blog') return SCREENS.BLOG
-    if (path === '/guia') return SCREENS.GUIA
+    if (path === '/practice') return SCREENS.GUIA
     if (path === '/patterns') return SCREENS.PATTERNS
     return boot.screen
   })
@@ -131,7 +131,7 @@ function AppShell() {
   }, [])
 
   const goToGuia = useCallback(() => {
-    window.history.pushState({ screen: SCREENS.GUIA }, '', '/guia')
+    window.history.pushState({ screen: SCREENS.GUIA }, '', '/practice')
     setScreen(SCREENS.GUIA)
   }, [])
 
