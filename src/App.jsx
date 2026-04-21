@@ -147,6 +147,7 @@ function AppShell() {
 
   const onTournamentLoaded = useCallback((payload) => {
     if (payload.matches?.length) {
+      if (window.location.pathname === '/dashboard') return
       const norm = normalizeHydratedScreen(payload.screen, payload.activeMatchId)
       let s = norm.screen
       if (payload.competitionMode === COMPETITION_MODE.practice && s === SCREENS.LEADERBOARD) {
@@ -337,7 +338,7 @@ function AppShell() {
             CLASH<span className="text-red-500">PRO</span>
           </span>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {screen !== SCREENS.DASHBOARD && (
+            {screen !== SCREENS.DASHBOARD && screen !== SCREENS.SETUP && (
               <span
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap border ${
                   isTournament
@@ -349,7 +350,7 @@ function AppShell() {
                 {isTournament ? 'Competición' : 'Práctica'}
               </span>
             )}
-            {screen !== SCREENS.DASHBOARD && (
+            {screen !== SCREENS.DASHBOARD && screen !== SCREENS.SETUP && (
               <span
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
                   isPro ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-500'

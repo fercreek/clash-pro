@@ -2,6 +2,7 @@ import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { Trophy, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { calculateScores, computeExtendedStats } from '../utils/roundRobin'
+import { AV_BG } from '../utils/avatarColors'
 
 function buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches, isFinished) {
   const lines = ['🏆 ClashPro — Resultado de hoy', '']
@@ -40,14 +41,6 @@ function buildShareText(leaderboard, completedMatches, totalMatches, isFinished)
   return lines.join('\n')
 }
 
-const AV_BG = [
-  'linear-gradient(135deg, #ef4444, #b91c1c)',
-  'linear-gradient(135deg, #f59e0b, #b45309)',
-  'linear-gradient(135deg, #0891b2, #164e63)',
-  'linear-gradient(135deg, #8b5cf6, #5b21b6)',
-  'linear-gradient(135deg, #10b981, #065f46)',
-  'linear-gradient(135deg, #ec4899, #9d174d)',
-]
 
 function Avatar({ name, size = 40, idx = 0 }) {
   const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
