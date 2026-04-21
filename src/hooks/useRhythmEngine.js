@@ -107,6 +107,8 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
   useEffect(() => () => {
     isPlayingRef.current = false
     clearTimeout(timerRef.current)
+    ctxRef.current?.close().catch(() => {})
+    ctxRef.current = null
   }, [])
 
   return {

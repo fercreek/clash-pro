@@ -236,24 +236,36 @@ export const INSTRUMENT_SYNTHS = {
 
   bajo(ctx, t) {
     const vel = 0.85 + Math.random() * 0.30
-    // Karplus-Strong plucked bass string ~82Hz (Ab — sits between Eb and F of tumbao)
-    const excBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.015), ctx.sampleRate)
-    const excData = excBuf.getChannelData(0)
-    for (let i = 0; i < excData.length; i++) {
-      // Triangular window models finger pluck shape
-      const phase = i / excData.length
-      excData[i] = (Math.random() * 2 - 1) * (phase < 0.3 ? phase / 0.3 : (1 - phase) / 0.7)
-    }
-    const exc = ctx.createBufferSource(); exc.buffer = excBuf
-    const delay = ctx.createDelay(0.1); delay.delayTime.value = 1 / 82  // 12.2ms = Ab
-    const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 1200; lpf.Q.value = 0.5
-    const fbGain = ctx.createGain(); fbGain.gain.value = 0.96  // slow decay, natural bass sustain
-    const out = ctx.createGain()
-    out.gain.setValueAtTime(0.8 * vel, t); out.gain.exponentialRampToValueAtTime(0.0001, t + 0.35)
-    exc.connect(delay)
-    delay.connect(lpf); lpf.connect(fbGain); fbGain.connect(delay)
-    delay.connect(out); out.connect(ctx.destination)
-    exc.start(t)
+    const freq = 82  // Ab — between Eb and F of tumbao
+
+    // Sawtooth into lowpass: warm plucked bass character, self-cleaning via osc.stop()
+    const o = ctx.createOscillator(); o.type = 'sawtooth'
+    o.frequency.setValueAtTime(freq * 1.015, t)
+    o.frequency.exponentialRampToValueAtTime(freq, t + 0.04)
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'
+    lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(280, t + 0.12)
+    lp.Q.value = 1.5
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.linearRampToValueAtTime(0.55 * vel, t + 0.006)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28)
+    o.connect(lp); lp.connect(g); g.connect(ctx.destination)
+    o.start(t); o.stop(t + 0.29)
+
+    // Sub sine for low-end weight
+    const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = freq
+    const subG = ctx.createGain()
+    subG.gain.setValueAtTime(0.35 * vel, t); subG.gain.exponentialRampToValueAtTime(0.0001, t + 0.20)
+    sub.connect(subG); subG.connect(ctx.destination)
+    sub.start(t); sub.stop(t + 0.21)
+
+    // Pluck click transient
+    const nb = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.007), ctx.sampleRate)
+    const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+    const ns = ctx.createBufferSource(); ns.buffer = nb
+    const nlp = ctx.createBiquadFilter(); nlp.type = 'bandpass'; nlp.frequency.value = 500; nlp.Q.value = 2
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.22 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.007)
+    ns.connect(nlp); nlp.connect(ng); ng.connect(ctx.destination); ns.start(t)
   },
 }
 
