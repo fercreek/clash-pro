@@ -131,9 +131,12 @@ Categorías disponibles: `conocimiento`, `buenas-practicas`.
 
 ## Agregar sonidos
 
-Todos los sonidos van en `src/hooks/useCountdownBeeps.js` usando Web Audio API. No usar archivos `.mp3`/`.ogg`.
+Dos categorías, dos patrones distintos:
 
-Patrón:
+- **Sonidos UI cortos** (countdown, bell, participant change): Web Audio API procedural en `src/hooks/useCountdownBeeps.js`. Sin archivos.
+- **Percusión del secuenciador de ritmos** (clave, conga, cowbell, maracas, bajo): samples WAV CC0 en `src/audio/samples/`. Cargados vía `import.meta.glob` en `src/audio/samples.js`, reproducidos como `AudioBuffer` en `useRhythmEngine.js`. Si un sample falta, cae a la síntesis de `INSTRUMENT_SYNTHS` (`src/data/rhythmPatterns.js`).
+
+Patrón para sonidos UI:
 ```js
 const playMiSonido = useCallback(() => {
   if (muted) return
