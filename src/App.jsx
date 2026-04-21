@@ -429,7 +429,10 @@ function AppShell() {
           )}
 
           {screen === SCREENS.PATTERNS && (
-            <PatternsScreen onBack={() => { window.history.back() }} />
+            <PatternsScreen
+              onBack={() => { window.history.back() }}
+              onOpenBlogPost={goToBlogPost}
+            />
           )}
         </main>
       </div>

@@ -1,20 +1,102 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ChevronLeft, Plus, Trash2, Edit3, Copy, Play, Pause, Save,
-  Eraser, Music2, Volume2, VolumeX, Circle, Square, AlertCircle,
+  Eraser, Music2, VolumeX, Circle, Square, AlertCircle, BookOpen,
 } from 'lucide-react'
 import {
-  INSTRUMENTS, MIN_BPM, MAX_BPM, DEFAULT_BPM, STEPS_PER_PATTERN, emptyPattern,
+  INSTRUMENTS, MIN_BPM, MAX_BPM, DEFAULT_BPM, STEPS_PER_PATTERN,
+  emptyPattern, REFERENCE_PATTERNS,
 } from '../data/rhythmPatterns'
 import { useRhythmEngine } from '../hooks/useRhythmEngine'
 import { listPatterns, savePattern, deletePattern } from '../lib/customPatterns'
 
+// ── Mini grid (read-only) ─────────────────────────────────────────────────────
+function MiniGrid({ pattern, currentStep = -1, isPlaying = false }) {
+  return (
+    <div className="space-y-0.5">
+      {INSTRUMENTS.map((inst) => (
+        <div key={inst.id} className="flex gap-0.5">
+          {(pattern?.[inst.id] ?? Array(STEPS_PER_PATTERN).fill(0)).map((hit, i) => (
+            <div
+              key={i}
+              className={`flex-1 h-1.5 rounded-sm transition-colors ${
+                hit
+                  ? i === currentStep && isPlaying ? 'bg-red-400' : 'bg-red-500/70'
+                  : i === currentStep && isPlaying ? 'bg-zinc-600' : 'bg-zinc-800'
+              }`}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Reference pattern card ────────────────────────────────────────────────────
+function RefPatternCard({ data, onUseAsBase, onOpenBlogPost }) {
+  const { isPlaying, currentStep, toggle } = useRhythmEngine(data.pattern, data.bpm)
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <p className="text-white font-semibold text-sm">{data.label}</p>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-zinc-700 text-zinc-400 uppercase tracking-wide shrink-0">
+              Ref
+            </span>
+          </div>
+          <p className="text-zinc-400 text-[11px] leading-snug">{data.description}</p>
+        </div>
+        <span className="text-zinc-500 text-[10px] tabular-nums shrink-0">{data.bpm} BPM</span>
+      </div>
+
+      <MiniGrid pattern={data.pattern} currentStep={currentStep} isPlaying={isPlaying} />
+
+      <p className="text-zinc-600 text-[10px] leading-snug italic">{data.credit}</p>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={toggle}
+          className={`flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors ${
+            isPlaying
+              ? 'bg-zinc-800 text-white'
+              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+          }`}
+        >
+          {isPlaying ? <><Pause size={11} /> Parar</> : <><Play size={11} fill="currentColor" /> Preview</>}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onUseAsBase({ name: data.label, bpm: data.bpm, pattern: data.pattern })}
+          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 transition-colors"
+        >
+          <Copy size={11} /> Usar como base
+        </button>
+
+        {data.blogSlug && onOpenBlogPost && (
+          <button
+            type="button"
+            onClick={() => onOpenBlogPost(data.blogSlug)}
+            className="flex items-center gap-1 text-[11px] text-zinc-500 hover:text-red-400 transition-colors px-2 py-1.5"
+            title="Leer artículo"
+          >
+            <BookOpen size={11} /> Artículo
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Library view ──────────────────────────────────────────────────────────────
-function Library({ items, loading, error, onNew, onEdit, onDuplicate, onDelete }) {
+function Library({ items, loading, error, onNew, onEdit, onDuplicate, onDelete, onUseAsBase, onOpenBlogPost }) {
   const [confirmId, setConfirmId] = useState(null)
 
   return (
-    <div className="px-4 py-4 space-y-4">
+    <div className="px-4 py-4 space-y-6">
       <button
         type="button"
         onClick={onNew}
@@ -23,99 +105,105 @@ function Library({ items, loading, error, onNew, onEdit, onDuplicate, onDelete }
         <Plus size={18} /> Nuevo patrón
       </button>
 
-      {error && (
-        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
-          <AlertCircle size={14} /> {error}
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex justify-center py-8">
-          <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
-      {!loading && items.length === 0 && !error && (
-        <div className="text-center py-8 text-zinc-500 text-sm">
-          <Music2 size={32} className="mx-auto mb-3 text-zinc-700" />
-          Aún no tienes patrones guardados.<br />
-          Crea uno colocando beats en el grid o tappeando en vivo.
-        </div>
-      )}
-
+      {/* Patrones de referencia */}
       <div className="space-y-2">
-        {items.map((it) => (
-          <div key={it.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="min-w-0">
-                <p className="text-white font-semibold text-sm truncate">{it.name}</p>
-                <p className="text-zinc-500 text-[11px]">{it.bpm} BPM</p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onEdit(it)}
-                  className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
-                  title="Editar"
-                >
-                  <Edit3 size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDuplicate(it)}
-                  className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
-                  title="Duplicar"
-                >
-                  <Copy size={15} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmId(confirmId === it.id ? null : it.id)}
-                  className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
-                  title="Borrar"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-
-            {/* mini preview */}
-            <div className="space-y-0.5">
-              {INSTRUMENTS.map((inst) => (
-                <div key={inst.id} className="flex gap-0.5">
-                  {(it.pattern?.[inst.id] ?? Array(STEPS_PER_PATTERN).fill(0)).map((hit, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 h-1.5 rounded-sm ${hit ? 'bg-red-500/70' : 'bg-zinc-800'}`}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-
-            {confirmId === it.id && (
-              <div className="mt-3 flex items-center justify-between gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                <span className="text-red-300 text-xs">¿Borrar "{it.name}"?</span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmId(null)}
-                    className="text-zinc-400 text-xs px-2 py-1"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { onDelete(it.id); setConfirmId(null) }}
-                    className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-lg"
-                  >
-                    Borrar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Patrones de referencia</p>
+        {REFERENCE_PATTERNS.map((ref) => (
+          <RefPatternCard
+            key={ref.id}
+            data={ref}
+            onUseAsBase={onUseAsBase}
+            onOpenBlogPost={onOpenBlogPost}
+          />
         ))}
+      </div>
+
+      {/* Mis patrones */}
+      <div className="space-y-2">
+        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Mis patrones</p>
+
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+            <AlertCircle size={14} /> {error}
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex justify-center py-6">
+            <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+
+        {!loading && items.length === 0 && !error && (
+          <div className="text-center py-6 text-zinc-500 text-sm">
+            <Music2 size={28} className="mx-auto mb-2 text-zinc-700" />
+            Aún no tienes patrones guardados.<br />
+            Crea uno o usa un patrón de referencia como base.
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {items.map((it) => (
+            <div key={it.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">{it.name}</p>
+                  <p className="text-zinc-500 text-[11px]">{it.bpm} BPM</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(it)}
+                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                    title="Editar"
+                  >
+                    <Edit3 size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDuplicate(it)}
+                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                    title="Duplicar"
+                  >
+                    <Copy size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmId(confirmId === it.id ? null : it.id)}
+                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                    title="Borrar"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+
+              <MiniGrid pattern={it.pattern} />
+
+              {confirmId === it.id && (
+                <div className="mt-3 flex items-center justify-between gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                  <span className="text-red-300 text-xs">¿Borrar "{it.name}"?</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(null)}
+                      className="text-zinc-400 text-xs px-2 py-1"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { onDelete(it.id); setConfirmId(null) }}
+                      className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-lg"
+                    >
+                      Borrar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -155,7 +243,6 @@ function Editor({ initial, onCancel, onSaved }) {
     setDraft(emptyPattern())
   }, [isPlaying, stop])
 
-  // Tap-to-record
   const stopRecording = useCallback(() => {
     recordTimersRef.current.forEach(clearTimeout)
     recordTimersRef.current = []
@@ -187,7 +274,6 @@ function Editor({ initial, onCancel, onSaved }) {
     const loopBars = 2
     const stepMs = beatMs / 4
 
-    // count-in: 4 quarter notes
     for (let i = 0; i < 4; i++) {
       const t = setTimeout(() => {
         setCountIn(4 - i)
@@ -196,16 +282,13 @@ function Editor({ initial, onCancel, onSaved }) {
       recordTimersRef.current.push(t)
     }
 
-    // start record
     const startT = setTimeout(() => {
       recordStartRef.current = performance.now()
       setCountIn(0)
-      // click on each beat during record (4 beats × 2 bars = 8 beats)
       for (let i = 0; i < 4 * loopBars; i++) {
         const ct = setTimeout(() => playTick(i % 4 === 0 ? 1600 : 1200), i * beatMs)
         recordTimersRef.current.push(ct)
       }
-      // auto-stop at end of loop (loopBars × 8 steps × stepMs)
       const endT = setTimeout(() => stopRecording(), loopBars * 8 * stepMs)
       recordTimersRef.current.push(endT)
     }, 4 * beatMs + 50)
@@ -278,7 +361,6 @@ function Editor({ initial, onCancel, onSaved }) {
         />
       </div>
 
-      {/* Step header */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Pasos</p>
@@ -340,7 +422,6 @@ function Editor({ initial, onCancel, onSaved }) {
         </div>
       </div>
 
-      {/* Tap recorder */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -430,7 +511,7 @@ function Editor({ initial, onCancel, onSaved }) {
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
-export default function PatternsScreen({ onBack }) {
+export default function PatternsScreen({ onBack, onOpenBlogPost }) {
   const [view, setView] = useState('library')
   const [editing, setEditing] = useState(null)
   const [items, setItems] = useState([])
@@ -475,6 +556,10 @@ export default function PatternsScreen({ onBack }) {
     setView('library')
     setEditing(null)
   }
+  const handleUseAsBase = (base) => {
+    setEditing({ id: undefined, name: base.name, bpm: base.bpm, pattern: base.pattern })
+    setView('editor')
+  }
 
   return (
     <div className="min-h-full bg-zinc-950">
@@ -490,7 +575,7 @@ export default function PatternsScreen({ onBack }) {
         <div className="flex items-center gap-2">
           <Music2 size={16} className="text-red-400" />
           <h1 className="text-white text-sm font-black">
-            {view === 'editor' ? (editing ? 'Editar patrón' : 'Nuevo patrón') : 'Mis Patrones'}
+            {view === 'editor' ? (editing?.id ? 'Editar patrón' : 'Nuevo patrón') : 'Patrones'}
           </h1>
         </div>
       </div>
@@ -504,6 +589,8 @@ export default function PatternsScreen({ onBack }) {
           onEdit={handleEdit}
           onDuplicate={handleDuplicate}
           onDelete={handleDelete}
+          onUseAsBase={handleUseAsBase}
+          onOpenBlogPost={onOpenBlogPost}
         />
       )}
 

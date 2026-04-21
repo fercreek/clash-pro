@@ -78,3 +78,12 @@ Las canciones de salsa siguen una estructura que los bailarines aprenden a recon
 4. **Baila a la clave:** cuando tengas el patrón claro, deja que tus breaks coincidan con los golpes
 
 La clave no se aprende en un día. Se internaliza con semanas de escucha activa. Pero una vez que la escuchas, no puedes dejar de escucharla.
+
+---
+
+## Fuentes y referencias
+
+- Mauleón, Rebeca. *Salsa Guidebook for Piano and Ensemble*. Sher Music Co., 1993. — referencia técnica definitiva sobre la clave y la armonía salsera.
+- Sublette, Ned. *Cuba and Its Music: From the First Drums to the Mambo*. Chicago Review Press, 2004. — historia de la música afrocubana y el origen de los patrones rítmicos que definen la salsa.
+- Washburne, Christopher. "The Clave of Jazz: A Caribbean Contribution to the Rhythmic Foundation of an African-American Music." *Black Music Research Journal*, vol. 17, no. 1, 1997. — análisis musicológico de la clave y su influencia cruzada en el jazz y la salsa.
+- Santos, John. *The Clave: African Roots of Salsa and Caribbean Music*. Conferencias y materiales pedagógicos de percusión afrocubana (disponibles a través del Centro Cultural de la Raza, San Diego).
