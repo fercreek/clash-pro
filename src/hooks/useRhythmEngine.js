@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { INSTRUMENTS, DEFAULT_BPM } from '../data/rhythmPatterns'
+import { INSTRUMENTS, DEFAULT_BPM, INSTRUMENT_SYNTHS } from '../data/rhythmPatterns'
 
 const STEPS = 16
 
@@ -39,20 +39,10 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
     const p = patternRef.current
     if (!p) return
 
-    INSTRUMENTS.forEach(({ id, freq, type, gain, dur }) => {
+    INSTRUMENTS.forEach(({ id }) => {
       if (!p[id]?.[step]) return
       if (mutedRef.current[id]) return
-
-      const osc  = ctx.createOscillator()
-      const g    = ctx.createGain()
-      osc.connect(g)
-      g.connect(ctx.destination)
-      osc.type = type
-      osc.frequency.value = freq
-      g.gain.setValueAtTime(gain, scheduledTime)
-      g.gain.exponentialRampToValueAtTime(0.0001, scheduledTime + dur)
-      osc.start(scheduledTime)
-      osc.stop(scheduledTime + dur + 0.01)
+      INSTRUMENT_SYNTHS[id]?.(ctx, scheduledTime)
     })
   }, [])
 

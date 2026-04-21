@@ -141,6 +141,93 @@ export const REFERENCE_PATTERNS = [
 
 export const STEPS_PER_PATTERN = 16
 
+export const INSTRUMENT_SYNTHS = {
+  clave(ctx, t) {
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.065, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    const src = ctx.createBufferSource(); src.buffer = buf
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3500; bp.Q.value = 12
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.065)
+    src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start(t)
+    ;[2200, 3900].forEach((freq, i) => {
+      const o = ctx.createOscillator(); const og = ctx.createGain()
+      o.type = 'sine'; o.frequency.value = freq
+      og.gain.setValueAtTime(i === 0 ? 0.18 : 0.10, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.04)
+      o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + 0.05)
+    })
+  },
+
+  conga(ctx, t) {
+    const o = ctx.createOscillator(); const og = ctx.createGain()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(280, t); o.frequency.exponentialRampToValueAtTime(160, t + 0.12)
+    og.gain.setValueAtTime(0.6, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.25)
+    o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + 0.26)
+
+    const o2 = ctx.createOscillator(); const og2 = ctx.createGain()
+    o2.type = 'sine'
+    o2.frequency.setValueAtTime(820, t); o2.frequency.exponentialRampToValueAtTime(680, t + 0.04)
+    og2.gain.setValueAtTime(0.2, t); og2.gain.exponentialRampToValueAtTime(0.0001, t + 0.06)
+    o2.connect(og2); og2.connect(ctx.destination); o2.start(t); o2.stop(t + 0.07)
+
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate)
+    const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+    const ns = ctx.createBufferSource(); ns.buffer = nb
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.25, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.02)
+    ns.connect(hp); hp.connect(ng); ng.connect(ctx.destination); ns.start(t)
+  },
+
+  cowbell(ctx, t) {
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 720; bp.Q.value = 1.5
+    const mg = ctx.createGain(); mg.gain.setValueAtTime(0.3, t); mg.gain.exponentialRampToValueAtTime(0.0001, t + 0.4)
+    bp.connect(mg); mg.connect(ctx.destination)
+    ;[540, 800].forEach(freq => {
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = freq
+      o.connect(bp); o.start(t); o.stop(t + 0.41)
+    })
+    const cb = ctx.createBuffer(1, ctx.sampleRate * 0.005, ctx.sampleRate)
+    const cd = cb.getChannelData(0); for (let i = 0; i < cd.length; i++) cd[i] = Math.random() * 2 - 1
+    const cs = ctx.createBufferSource(); cs.buffer = cb
+    const cg = ctx.createGain(); cg.gain.setValueAtTime(0.5, t); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.005)
+    cs.connect(cg); cg.connect(ctx.destination); cs.start(t)
+  },
+
+  maracas(ctx, t) {
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.038, ctx.sampleRate)
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    const src = ctx.createBufferSource(); src.buffer = buf
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3000
+    const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 5500; pk.gain.value = 8; pk.Q.value = 1
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.22, t + 0.003)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.038)
+    src.connect(hp); hp.connect(pk); pk.connect(g); g.connect(ctx.destination); src.start(t)
+  },
+
+  bajo(ctx, t) {
+    const o = ctx.createOscillator(); const og = ctx.createGain()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(75, t + 0.08)
+    og.gain.setValueAtTime(0.55, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.28)
+    o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + 0.29)
+
+    const o2 = ctx.createOscillator(); const og2 = ctx.createGain()
+    o2.type = 'triangle'
+    o2.frequency.setValueAtTime(150, t); o2.frequency.exponentialRampToValueAtTime(95, t + 0.06)
+    og2.gain.setValueAtTime(0.25, t); og2.gain.exponentialRampToValueAtTime(0.0001, t + 0.15)
+    o2.connect(og2); og2.connect(ctx.destination); o2.start(t); o2.stop(t + 0.16)
+
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 0.015, ctx.sampleRate)
+    const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+    const ns = ctx.createBufferSource(); ns.buffer = nb
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.015)
+    ns.connect(lp); lp.connect(ng); ng.connect(ctx.destination); ns.start(t)
+  },
+}
+
 export function emptyPattern() {
   return INSTRUMENTS.reduce((acc, inst) => {
     acc[inst.id] = Array(STEPS_PER_PATTERN).fill(0)
