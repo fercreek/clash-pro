@@ -70,7 +70,7 @@ export async function loginAs(page, { user = MOCK_USER, profile = MOCK_PROFILE }
   )
 
   // Navigate first (to get origin), then inject localStorage session
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'commit' })
   await page.evaluate(
     ([key, session]) => localStorage.setItem(key, JSON.stringify(session)),
     [STORAGE_KEY, MOCK_SESSION]

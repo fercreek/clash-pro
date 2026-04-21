@@ -197,6 +197,9 @@ function AppShell() {
     const path = window.location.pathname
     if (path === '/' || path === '') {
       window.history.replaceState({ screen: SCREENS.DASHBOARD }, '', '/dashboard')
+      setScreen(SCREENS.DASHBOARD)
+    } else if (path === '/dashboard') {
+      setScreen(SCREENS.DASHBOARD)
     }
   }, [user])
 
