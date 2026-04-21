@@ -21,9 +21,9 @@ test.describe('Dashboard (authenticated)', () => {
   })
 
   test('tool buttons visible', async ({ page }) => {
-    await expect(page.getByText('Patrones de salsa')).toBeVisible()
-    await expect(page.getByText('Guía de práctica')).toBeVisible()
-    await expect(page.getByText('Base de conocimiento')).toBeVisible()
+    await expect(page.getByText('Patrones')).toBeVisible()
+    await expect(page.getByText('Guía')).toBeVisible()
+    await expect(page.getByText('Base')).toBeVisible()
   })
 
   test('Competición → SETUP screen', async ({ page }) => {

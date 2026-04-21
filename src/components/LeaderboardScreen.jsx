@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
-import { Trophy, Medal, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw } from 'lucide-react'
+import { Trophy, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { calculateScores, computeExtendedStats } from '../utils/roundRobin'
 
@@ -40,47 +40,74 @@ function buildShareText(leaderboard, completedMatches, totalMatches, isFinished)
   return lines.join('\n')
 }
 
-const RANK_STYLES = [
-  { bg: 'bg-amber-500/20 border-amber-500', text: 'text-amber-400', icon: Trophy },
-  { bg: 'bg-zinc-400/10 border-zinc-400', text: 'text-zinc-300', icon: Medal },
-  { bg: 'bg-orange-800/20 border-orange-700', text: 'text-orange-500', icon: Medal },
+const AV_BG = [
+  'linear-gradient(135deg, #ef4444, #b91c1c)',
+  'linear-gradient(135deg, #f59e0b, #b45309)',
+  'linear-gradient(135deg, #0891b2, #164e63)',
+  'linear-gradient(135deg, #8b5cf6, #5b21b6)',
+  'linear-gradient(135deg, #10b981, #065f46)',
+  'linear-gradient(135deg, #ec4899, #9d174d)',
 ]
 
-function ScoreRow({ entry, rank, stat, showExtendedStats }) {
-  const style = RANK_STYLES[rank] ?? {
-    bg: 'bg-zinc-800/50 border-zinc-800',
-    text: 'text-zinc-400',
-  }
-  const Icon = style.icon
-
-  const streakLabel = stat?.currentStreak
-    ? stat.currentStreak > 0
-      ? `Racha: ${stat.currentStreak}🔥`
-      : `Racha: ${Math.abs(stat.currentStreak)}↓`
-    : null
-
+function Avatar({ name, size = 40, idx = 0 }) {
+  const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
   return (
-    <div className={`flex items-center gap-4 border rounded-xl px-4 py-3 ${style.bg}`}>
-      <span className={`text-2xl font-black w-8 text-center ${style.text}`}>
-        {rank + 1}
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-bold truncate">{entry.name}</p>
-        {showExtendedStats && stat && stat.played > 0 && (
-          <p className="text-xs text-zinc-500 mt-0.5">
-            {stat.wins}V · {stat.losses}D · {stat.draws}E
-            {streakLabel && (
-              <span className={stat.currentStreak > 0 ? ' text-green-400' : ''}>
-                {' · '}{streakLabel}
-              </span>
-            )}
-          </p>
+    <div
+      className="shrink-0 rounded-full flex items-center justify-center text-white font-black"
+      style={{ width: size, height: size, background: AV_BG[idx % AV_BG.length], fontSize: size * 0.38 }}
+    >
+      {initials}
+    </div>
+  )
+}
+
+function Streak({ n }) {
+  if (!n) return null
+  const up = n > 0
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-black ${up ? 'text-green-400' : 'text-zinc-500'}`}>
+      {up ? '🔥' : '↓'}{Math.abs(n)}
+    </span>
+  )
+}
+
+function PodiumBlock({ rank, name, pts, color, height, idx, champion }) {
+  return (
+    <div className="flex flex-col items-center" style={{ width: 96 }}>
+      <div className="relative mb-2">
+        {champion && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+            <Trophy size={20} color="#fbbf24" strokeWidth={2.5} />
+          </div>
         )}
+        <Avatar name={name} size={champion ? 60 : 48} idx={idx} />
+        <div
+          className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center font-black text-[11px]"
+          style={{ width: 20, height: 20, background: color, color: '#18181b', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}
+        >
+          {rank}
+        </div>
       </div>
-      <div className={`flex items-center gap-1 font-black text-xl ${style.text}`}>
-        {Icon && rank < 3 && <Icon size={16} />}
-        <span>{entry.points}</span>
-        <span className="text-xs font-normal text-zinc-500">pts</span>
+      <p className="text-white font-bold text-[11px] text-center leading-tight max-w-full truncate w-full px-1">
+        {name.split(' ')[0]}
+      </p>
+      <p className="text-zinc-500 text-[10px] mb-2">{pts} pts</p>
+      <div
+        className="w-full relative rounded-t-lg overflow-hidden"
+        style={{
+          height,
+          background: `linear-gradient(180deg, ${color}22, ${color}08)`,
+          border: `1px solid ${color}40`,
+          borderBottom: 'none',
+        }}
+      >
+        <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: color }} />
+        <div
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 font-black tabular-nums"
+          style={{ color: `${color}33`, fontSize: 40, lineHeight: 1, letterSpacing: '-0.04em' }}
+        >
+          {rank}
+        </div>
       </div>
     </div>
   )
@@ -100,10 +127,7 @@ export default function LeaderboardScreen({
   const [copyDone, setCopyDone] = useState(false)
   const confettiFiredRef = useRef(false)
 
-  const leaderboard = useMemo(
-    () => calculateScores(competitors, matches),
-    [competitors, matches]
-  )
+  const leaderboard = useMemo(() => calculateScores(competitors, matches), [competitors, matches])
 
   const extStats = useMemo(
     () => (showExtendedStats ? computeExtendedStats(competitors, matches) : []),
@@ -117,12 +141,7 @@ export default function LeaderboardScreen({
   useEffect(() => {
     if (!showConfetti || completedMatches <= 0 || confettiFiredRef.current) return
     confettiFiredRef.current = true
-    confetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#ef4444', '#f97316', '#ffffff', '#fbbf24'],
-    })
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ['#ef4444', '#f97316', '#ffffff', '#fbbf24'] })
   }, [showConfetti, completedMatches])
 
   const shareText = useMemo(
@@ -162,96 +181,171 @@ export default function LeaderboardScreen({
     window.open(`https://wa.me/?text=${encodeURIComponent(whatsappText)}`, '_blank', 'noopener,noreferrer')
   }, [whatsappText])
 
+  const [first, second, third, ...rest] = leaderboard
+
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-5">
-      <div className="flex items-center gap-3 pt-2">
+    <div className="min-h-full bg-zinc-950 text-white">
+
+      {/* amber glow from top */}
+      <div
+        className="absolute inset-x-0 top-0 h-64 pointer-events-none"
+        style={{ background: 'radial-gradient(70% 50% at 50% 0%, rgba(251,191,36,0.18), transparent 70%)' }}
+      />
+
+      {/* header */}
+      <div className="relative px-5 pt-5 pb-3 flex items-center justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+          className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:bg-zinc-800 transition-colors"
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1">
-          <h2 className="text-xl font-black">Leaderboard</h2>
-          <p className="text-zinc-400 text-xs">
-            {completedMatches}/{totalMatches} batallas completadas
+
+        <div className="text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400">
+            {isFinished ? 'Torneo terminado' : 'Ranking en vivo'}
           </p>
+          <p className="text-zinc-500 text-[11px] font-medium">{completedMatches}/{totalMatches} batallas</p>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={handleShare}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-sm transition-colors"
-            title="Compartir"
-          >
-            <Share2 size={14} />
-          </button>
+
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={handleWhatsApp}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-green-900/40 px-3 py-2 rounded-lg text-sm transition-colors"
+            className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-green-400 hover:bg-zinc-800 transition-colors"
             title="WhatsApp"
           >
-            <MessageCircle size={14} className="text-green-400" />
+            <MessageCircle size={16} />
           </button>
           <button
             type="button"
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-sm transition-colors"
-            title="Copiar"
+            onClick={handleShare}
+            className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:bg-zinc-800 transition-colors"
+            title="Compartir"
           >
-            <Copy size={14} />
-            {copyDone && <span className="text-xs text-green-400">OK</span>}
+            <Share2 size={16} />
           </button>
         </div>
       </div>
 
-      {isFinished && leaderboard.length > 0 && (
-        <div className="text-center bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5">
-          <Trophy size={36} className="text-amber-400 mx-auto mb-2" />
-          <p className="text-amber-400 text-sm uppercase tracking-widest font-semibold">
-            Campeón
-          </p>
-          <p className="text-white text-3xl font-black mt-1">{leaderboard[0].name}</p>
-          <p className="text-amber-400 font-bold">{leaderboard[0].points} puntos</p>
+      {/* champion name */}
+      {first && (
+        <div className="relative px-5 pt-2 pb-1 text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400/80 mb-1">Campeón</p>
+          <div className="inline-flex items-center gap-2 mb-0.5">
+            <Trophy size={16} className="text-amber-400" strokeWidth={2.5} />
+            <h1 className="text-white font-black text-[28px] leading-none tracking-tight">{first.name}</h1>
+          </div>
+          <p className="text-zinc-500 text-xs font-medium">{first.points} pts</p>
         </div>
       )}
 
-      <section className="space-y-2">
-        {leaderboard.map((entry, i) => (
-          <ScoreRow
-            key={entry.name}
-            entry={entry}
-            rank={i}
-            stat={extStats.find((s) => s.name === entry.name)}
-            showExtendedStats={showExtendedStats}
-          />
-        ))}
-      </section>
+      {/* podium */}
+      {leaderboard.length >= 2 && (
+        <div className="relative px-4 pt-8 pb-4">
+          <div className="flex items-end justify-center gap-2">
+            {second && (
+              <PodiumBlock rank={2} name={second.name} pts={second.points} color="#e4e4e7" height={100} idx={1} />
+            )}
+            {first && (
+              <PodiumBlock rank={1} name={first.name} pts={first.points} color="#fbbf24" height={140} idx={0} champion />
+            )}
+            {third && (
+              <PodiumBlock rank={3} name={third.name} pts={third.points} color="#d97706" height={78} idx={2} />
+            )}
+          </div>
+        </div>
+      )}
 
-      {isFinished && showFooterActions && (
-        <div className="flex gap-3 pt-2">
-          {onNewSession && (
+      {/* rest of ranking */}
+      {rest.length > 0 && (
+        <div className="px-5 pt-4 pb-2">
+          <div className="flex items-center gap-3 mb-3">
+            <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">Resto del ranking</p>
+            <div className="flex-1 h-px bg-zinc-900" />
+          </div>
+          <div className="flex flex-col">
+            {rest.map((e, i) => {
+              const rank = i + 4
+              const stat = extStats.find((s) => s.name === e.name)
+              const rankColor = '#52525b'
+              return (
+                <div
+                  key={e.name}
+                  className={`flex items-center gap-3 py-3 ${i < rest.length - 1 ? 'border-b border-zinc-900' : ''}`}
+                >
+                  <div className="w-8 text-center">
+                    <span className="font-black text-lg tabular-nums" style={{ color: rankColor }}>{rank}</span>
+                  </div>
+                  <Avatar name={e.name} size={38} idx={rank - 1} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-bold text-sm truncate leading-tight">{e.name}</p>
+                    {stat && stat.played > 0 && (
+                      <p className="text-zinc-500 text-[11px]">
+                        {stat.wins}V · {stat.losses}D · {stat.draws}E{' '}
+                        <Streak n={stat.currentStreak} />
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-black text-base tabular-nums leading-none">{e.points}</p>
+                    <p className="text-zinc-600 text-[9px] uppercase tracking-wider font-black">pts</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* copy button */}
+      <div className="px-5 pt-2 pb-2">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl py-3 text-zinc-400 text-sm font-semibold transition-colors"
+        >
+          <Copy size={14} />
+          {copyDone ? <span className="text-green-400">Copiado</span> : 'Copiar ranking'}
+        </button>
+      </div>
+
+      {/* share + reset */}
+      <div className="px-5 pt-2 pb-8">
+        <button
+          type="button"
+          onClick={handleShare}
+          className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-400 rounded-2xl py-4 text-white font-black text-base tracking-tight transition-colors"
+        >
+          <Share2 size={16} />
+          Compartir resultados
+        </button>
+
+        {showFooterActions && (
+          <div className="flex gap-2 mt-2">
+            {onNewSession && (
+              <button
+                type="button"
+                onClick={onNewSession}
+                className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 py-3 rounded-xl text-sm font-semibold text-zinc-300 transition-colors"
+              >
+                <RefreshCw size={14} />
+                Nueva sesión
+              </button>
+            )}
             <button
               type="button"
-              onClick={onNewSession}
-              className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
+              onClick={onReset}
+              className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 py-3 rounded-xl text-sm font-semibold text-zinc-300 transition-colors"
             >
-              <RefreshCw size={15} />
-              Nueva sesión
+              <RotateCcw size={14} />
+              Nuevo torneo
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onReset}
-            className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
-          >
-            <RotateCcw size={15} />
-            Nuevo torneo
-          </button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
