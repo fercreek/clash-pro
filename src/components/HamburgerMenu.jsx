@@ -105,13 +105,13 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/60 z-40"
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity duration-300"
         onClick={onClose}
       />
 
-      <div className="fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-zinc-900 border-l border-zinc-800 z-50 flex flex-col shadow-2xl">
+      <div className="fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-zinc-900 border-l-2 border-l-red-500/30 border-r border-t border-b border-zinc-800 z-50 flex flex-col shadow-2xl">
 
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-zinc-700/70">
           <div className="flex items-center gap-3 min-w-0">
             <input
               ref={fileRef}
@@ -160,7 +160,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
               </div>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-white p-1 shrink-0">
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-white hover:bg-zinc-800 p-2 rounded-lg transition-colors shrink-0">
             <X size={18} />
           </button>
         </div>
@@ -216,7 +216,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
             <button
               type="button"
               onClick={onOpenTournamentHistory}
-              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
             >
               <div className="flex items-center gap-2.5">
                 <History size={16} className="text-red-400" />
@@ -230,7 +230,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
             <button
               type="button"
               onClick={onOpenGuia}
-              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
             >
               <div className="flex items-center gap-2.5">
                 <Dumbbell size={16} className="text-orange-400" />
@@ -244,7 +244,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
             <button
               type="button"
               onClick={onOpenPatterns}
-              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
             >
               <div className="flex items-center gap-2.5">
                 <Music2 size={16} className="text-red-400" />
@@ -259,7 +259,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
               <button
                 type="button"
                 onClick={() => onOpenBlog('conocimiento')}
-                className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+                className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
               >
                 <div className="flex items-center gap-2.5">
                   <BookOpen size={16} className="text-red-400" />
@@ -270,7 +270,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
               <button
                 type="button"
                 onClick={() => onOpenBlog('buenas-practicas')}
-                className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 transition-colors group"
+                className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
               >
                 <div className="flex items-center gap-2.5">
                   <Star size={16} className="text-red-400" />
@@ -298,7 +298,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
           </a>
         </div>
 
-        <div className="px-5 pb-6 pt-2 border-t border-zinc-800">
+        <div className="px-5 pb-6 pt-2 border-t border-zinc-700/70">
           {photoStatus === 'error' && (
             <p className="flex items-center gap-1.5 text-red-400 text-xs mb-2">
               <AlertCircle size={13} /> {photoMsg}
@@ -312,7 +312,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex items-center gap-2 w-full text-zinc-400 hover:text-red-400 transition-colors text-sm py-2"
+            className="flex items-center gap-2 w-full text-zinc-400 hover:text-red-400 hover:bg-zinc-800/50 transition-colors text-sm py-2.5 px-3 rounded-lg"
           >
             <LogOut size={15} />
             Cerrar sesión

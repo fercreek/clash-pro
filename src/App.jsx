@@ -297,15 +297,17 @@ function AppShell() {
   return (
     <CompetitionModeProvider mode={competitionMode} setMode={setCompetitionMode}>
       <div className="flex flex-col h-full bg-zinc-950 text-white">
-        <SpotifyPlayer ref={spotifyRef} onTrackChange={setNowPlaying} />
+        {screen === SCREENS.BATTLE && (
+          <SpotifyPlayer ref={spotifyRef} onTrackChange={setNowPlaying} />
+        )}
 
-        <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-zinc-800/60 shrink-0">
-          <span className="text-sm font-black tracking-tight text-white truncate min-w-0">
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-zinc-700 bg-zinc-950/80 backdrop-blur-sm shrink-0">
+          <span className="text-base font-black tracking-tight text-white truncate min-w-0">
             CLASH<span className="text-red-500">PRO</span>
           </span>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap border ${
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap border ${
                 isTournament
                   ? 'border-amber-500/35 bg-amber-500/10 text-amber-400'
                   : 'border-zinc-700 bg-zinc-800/80 text-zinc-400'
@@ -315,7 +317,7 @@ function AppShell() {
               {isTournament ? 'Competición' : 'Práctica'}
             </span>
             <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
                 isPro ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-500'
               }`}
               title="Tu plan"
@@ -325,7 +327,9 @@ function AppShell() {
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="flex items-center gap-2 text-zinc-500 hover:text-white p-1 rounded-lg transition-colors"
+              className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                menuOpen ? 'text-white bg-zinc-800' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              }`}
               aria-label="Abrir menú"
             >
               {profile?.photo_url && !navImgBroken ? (
