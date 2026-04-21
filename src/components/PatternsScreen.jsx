@@ -46,9 +46,9 @@ function RefPatternCard({ data, onUseAsBase, onOpenBlogPost }) {
               Ref
             </span>
           </div>
-          <p className="text-zinc-400 text-[11px] leading-snug">{data.description}</p>
+          <p className="text-zinc-400 text-xs leading-snug">{data.description}</p>
         </div>
-        <span className="text-zinc-500 text-[10px] tabular-nums shrink-0">{data.bpm} BPM</span>
+        <span className="text-zinc-500 text-xs tabular-nums shrink-0">{data.bpm} BPM</span>
       </div>
 
       <MiniGrid pattern={data.pattern} currentStep={currentStep} isPlaying={isPlaying} />
@@ -59,31 +59,31 @@ function RefPatternCard({ data, onUseAsBase, onOpenBlogPost }) {
         <button
           type="button"
           onClick={toggle}
-          className={`flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors ${
+          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-lg transition-colors ${
             isPlaying
               ? 'bg-zinc-800 text-white'
               : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
           }`}
         >
-          {isPlaying ? <><Pause size={11} /> Parar</> : <><Play size={11} fill="currentColor" /> Preview</>}
+          {isPlaying ? <><Pause size={13} /> Parar</> : <><Play size={13} fill="currentColor" /> Preview</>}
         </button>
 
         <button
           type="button"
           onClick={() => onUseAsBase({ name: data.label, bpm: data.bpm, pattern: data.pattern })}
-          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 transition-colors"
         >
-          <Copy size={11} /> Usar como base
+          <Copy size={13} /> Usar como base
         </button>
 
         {data.blogSlug && onOpenBlogPost && (
           <button
             type="button"
             onClick={() => onOpenBlogPost(data.blogSlug)}
-            className="flex items-center gap-1 text-[11px] text-zinc-500 hover:text-red-400 transition-colors px-2 py-1.5"
+            className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-2.5"
             title="Leer artículo"
           >
-            <BookOpen size={11} /> Artículo
+            <BookOpen size={13} /> Artículo
           </button>
         )}
       </div>
@@ -154,26 +154,26 @@ function Library({ items, loading, error, onNew, onEdit, onDuplicate, onDelete, 
                   <button
                     type="button"
                     onClick={() => onEdit(it)}
-                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                    className="p-3 text-zinc-400 hover:text-red-400 transition-colors"
                     title="Editar"
                   >
-                    <Edit3 size={15} />
+                    <Edit3 size={17} />
                   </button>
                   <button
                     type="button"
                     onClick={() => onDuplicate(it)}
-                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                    className="p-3 text-zinc-400 hover:text-red-400 transition-colors"
                     title="Duplicar"
                   >
-                    <Copy size={15} />
+                    <Copy size={17} />
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmId(confirmId === it.id ? null : it.id)}
-                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                    className="p-3 text-zinc-400 hover:text-red-400 transition-colors"
                     title="Borrar"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={17} />
                   </button>
                 </div>
               </div>
@@ -351,14 +351,26 @@ function Editor({ initial, onCancel, onSaved }) {
           <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Tempo</p>
           <span className="text-white font-black text-lg tabular-nums">{bpm} BPM</span>
         </div>
-        <input
-          type="range"
-          min={MIN_BPM}
-          max={MAX_BPM}
-          value={editorBpm}
-          onChange={(e) => setEditorBpm(Number(e.target.value))}
-          className="w-full accent-red-500"
-        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEditorBpm(Math.max(MIN_BPM, editorBpm - 5))}
+            className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white font-bold text-lg shrink-0"
+          >−</button>
+          <input
+            type="range"
+            min={MIN_BPM}
+            max={MAX_BPM}
+            value={editorBpm}
+            onChange={(e) => setEditorBpm(Number(e.target.value))}
+            className="flex-1 accent-red-500"
+          />
+          <button
+            type="button"
+            onClick={() => setEditorBpm(Math.min(MAX_BPM, editorBpm + 5))}
+            className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white font-bold text-lg shrink-0"
+          >+</button>
+        </div>
       </div>
 
       <div>
@@ -387,13 +399,13 @@ function Editor({ initial, onCancel, onSaved }) {
                 <button
                   type="button"
                   onClick={() => toggleMute(inst.id)}
-                  className={`w-14 shrink-0 text-[10px] font-bold py-1.5 rounded-lg border transition-colors ${
+                  className={`w-14 h-10 shrink-0 text-[10px] font-bold rounded-lg border transition-colors ${
                     isMuted
                       ? 'border-zinc-700 bg-zinc-800 text-zinc-600'
                       : 'border-red-500/50 bg-red-500/10 text-red-400'
                   }`}
                 >
-                  {isMuted ? <VolumeX size={12} className="mx-auto" /> : inst.label.slice(0, 5)}
+                  {isMuted ? <VolumeX size={13} className="mx-auto" /> : inst.label.slice(0, 5)}
                 </button>
                 <div className="flex-1 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${STEPS_PER_PATTERN}, 1fr)` }}>
                   {row.map((hit, i) => {
@@ -404,7 +416,7 @@ function Editor({ initial, onCancel, onSaved }) {
                         key={i}
                         type="button"
                         onClick={() => toggleCell(inst.id, i)}
-                        className={`h-7 rounded-sm transition-colors ${
+                        className={`h-10 rounded-sm transition-colors ${
                           hit
                             ? isCurrent ? 'bg-red-400' : 'bg-red-500/70 hover:bg-red-500'
                             : isCurrent
@@ -465,7 +477,7 @@ function Editor({ initial, onCancel, onSaved }) {
                   key={inst.id}
                   type="button"
                   onClick={() => recordTap(inst.id)}
-                  className="bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 border border-red-500/50 text-red-300 text-[11px] font-bold py-6 rounded-lg transition-colors select-none"
+                  className="bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 border border-red-500/50 text-red-300 text-sm font-bold py-8 rounded-xl transition-colors select-none"
                 >
                   {inst.label}
                 </button>

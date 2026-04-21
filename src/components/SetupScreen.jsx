@@ -145,13 +145,13 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
             onKeyDown={handleKeyDown}
             placeholder="Nombre del bailarín..."
             disabled={atLimit}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 disabled:opacity-40"
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-3.5 text-white placeholder-zinc-400 focus:outline-none focus:border-red-500 disabled:opacity-40"
           />
           <button
             type="button"
             onClick={handleAdd}
             disabled={!inputValue.trim() || atLimit}
-            className="bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed p-2 rounded-lg transition-colors"
+            className="bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed p-3.5 rounded-lg transition-colors"
           >
             <Plus size={20} />
           </button>
@@ -189,9 +189,9 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
               <button
                 type="button"
                 onClick={() => handleRemove(name)}
-                className="text-zinc-500 hover:text-red-500 transition-colors p-1"
+                className="text-zinc-500 hover:text-red-500 transition-colors p-3 -mr-2"
               >
-                <Trash2 size={16} />
+                <Trash2 size={18} />
               </button>
             </li>
           ))}
