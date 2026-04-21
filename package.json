@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.3.2",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^0.441.0",

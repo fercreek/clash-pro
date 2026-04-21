@@ -19,6 +19,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
   const isPlayingRef      = useRef(false)
   const buffersRef        = useRef({})
   const buffersLoadedRef  = useRef(false)
+  const nextNoteTimeRef   = useRef(0)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
@@ -89,20 +90,19 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
 
     const secondsPerStep = 60 / bpmRef.current / 4
     const lookAhead = 0.1
-    const scheduleTime = ctx.currentTime
+    const horizon = ctx.currentTime + lookAhead
 
-    let step = stepRef.current
-    let t = scheduleTime
-
-    while (t < scheduleTime + lookAhead) {
+    while (nextNoteTimeRef.current < horizon) {
+      const step = stepRef.current
+      const t = nextNoteTimeRef.current
       playStep(step, t)
-      setCurrentStep(step)
-      step = (step + 1) % STEPS
-      t += secondsPerStep
+      const delay = Math.max(0, (t - ctx.currentTime) * 1000)
+      setTimeout(() => setCurrentStep(step), delay)
+      stepRef.current = (step + 1) % STEPS
+      nextNoteTimeRef.current += secondsPerStep
     }
-    stepRef.current = step
 
-    timerRef.current = setTimeout(scheduleAhead, 50)
+    timerRef.current = setTimeout(scheduleAhead, 25)
   }, [playStep])
 
   const start = useCallback(() => {
@@ -112,6 +112,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
     loadSamples()
     isPlayingRef.current = true
     stepRef.current = 0
+    nextNoteTimeRef.current = ctx.currentTime + 0.05
     setIsPlaying(true)
     scheduleAhead()
   }, [ensureCtx, scheduleAhead, loadSamples])
