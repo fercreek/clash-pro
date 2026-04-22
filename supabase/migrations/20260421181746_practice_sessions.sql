@@ -1,0 +1,38 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 20260421181746_practice_sessions.sql
+-- Descripción: TODO — describe qué hace esta migración y por qué
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- REGLAS (ver supabase/migrations/TEMPLATE.sql para plantilla completa):
+--  · Siempre idempotente: IF NOT EXISTS, CREATE OR REPLACE, ADD COLUMN IF NOT EXISTS
+--  · NUNCA modificar migraciones ya aplicadas al remoto
+--  · NUNCA poner datos seed aquí — esos van en supabase/seed.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- TODO: reemplaza este bloque con el SQL de tu migración
+
+-- Ejemplo — tabla nueva:
+-- create table if not exists public.mi_tabla (
+--   id         uuid primary key default gen_random_uuid(),
+--   user_id    uuid references public.profiles(id) on delete cascade not null,
+--   created_at timestamptz not null default now()
+-- );
+--
+-- alter table public.mi_tabla enable row level security;
+--
+-- do $$
+-- begin
+--   if not exists (
+--     select 1 from pg_policies
+--     where schemaname = 'public'
+--       and tablename  = 'mi_tabla'
+--       and policyname = 'mi_tabla: propietario'
+--   ) then
+--     create policy "mi_tabla: propietario"
+--       on public.mi_tabla
+--       for all
+--       using (auth.uid() = user_id);
+--   end if;
+-- end $$;
+--
+-- create index if not exists mi_tabla_user_idx on public.mi_tabla (user_id);
