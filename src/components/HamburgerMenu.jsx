@@ -20,7 +20,7 @@ function fileToBase64(file) {
   })
 }
 
-export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia, onOpenPatterns }) {
+export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia, onOpenPatterns, onOpenPracticeHistory }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { planLabel, isPro, hasHistory } = usePlan()
 
@@ -223,6 +223,20 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
                 <p className="text-white text-sm font-medium">Historial de torneos</p>
               </div>
               <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
+            </button>
+          )}
+
+          {onOpenPracticeHistory && (
+            <button
+              type="button"
+              onClick={onOpenPracticeHistory}
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-2.5">
+                <History size={16} className="text-zinc-300" />
+                <p className="text-white text-sm font-medium">Historial práctica</p>
+              </div>
+              <ChevronRight size={14} className="text-zinc-600 group-hover:text-zinc-300 transition-colors" />
             </button>
           )}
 

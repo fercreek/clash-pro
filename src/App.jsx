@@ -11,9 +11,13 @@ import BlogScreen from './components/BlogScreen'
 import BlogPostScreen from './components/BlogPostScreen'
 import GuiaScreen from './components/GuiaScreen'
 import PatternsScreen from './components/PatternsScreen'
+import PracticeHistoryScreen from './components/PracticeHistoryScreen'
 import DashboardScreen from './components/DashboardScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
+import { generatePracticeRounds, mergeStats } from './utils/practiceRounds'
 import { saveTournamentArchive } from './lib/tournamentArchives'
+import { useRoster } from './hooks/useRoster'
+import { usePracticeSession } from './hooks/usePracticeSession'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
 import { useAuth } from './hooks/useAuth'
 import { usePlan } from './hooks/usePlan'
@@ -39,6 +43,7 @@ const SCREENS = {
   BLOG_POST: 'blog_post',
   GUIA: 'guia',
   PATTERNS: 'patterns',
+  PRACTICE_HISTORY: 'practice_history',
 }
 
 function computeBootState() {
@@ -91,6 +96,7 @@ function AppShell() {
     if (path === '/blog') return SCREENS.BLOG
     if (path === '/practice') return SCREENS.GUIA
     if (path === '/patterns') return SCREENS.PATTERNS
+    if (path === '/practice-history') return SCREENS.PRACTICE_HISTORY
     if (path === '/dashboard') return SCREENS.DASHBOARD
     return boot.screen === SCREENS.SETUP ? SCREENS.DASHBOARD : boot.screen
   })
@@ -99,8 +105,14 @@ function AppShell() {
   const [matches, setMatches] = useState(boot.matches)
   const [activeMatchId, setActiveMatchId] = useState(boot.activeMatchId)
   const [competitionMode, setCompetitionMode] = useState(boot.competitionMode)
+  const [practiceIterations, setPracticeIterations] = useState([])
+  const [practiceStats, setPracticeStats] = useState({ appearances: {}, pairs: [] })
+  const [practiceStartedAt, setPracticeStartedAt] = useState(null)
 
   const isTournament = competitionMode === COMPETITION_MODE.tournament
+
+  const { bumpFrequency } = useRoster()
+  const { save: savePracticeSession } = usePracticeSession()
 
   const goTo = useCallback((nextScreen, opts = {}) => {
     window.history.pushState({ screen: nextScreen, ...opts }, '')
@@ -115,7 +127,7 @@ function AppShell() {
         if (cur === SCREENS.MATCHES) return SCREENS.SETUP
         if (cur === SCREENS.SETUP) return SCREENS.DASHBOARD
         if (cur === SCREENS.BLOG_POST) return SCREENS.BLOG
-        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS) return SCREENS.DASHBOARD
+        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS || cur === SCREENS.PRACTICE_HISTORY) return SCREENS.DASHBOARD
         return cur
       })
     }
@@ -232,12 +244,23 @@ function AppShell() {
 
   const handleStartTournament = useCallback((finalCompetitors, selectedTime) => {
     archiveCompletedIfNeeded()
+    if (competitionMode === COMPETITION_MODE.practice) {
+      const { matches: generated, stats } = generatePracticeRounds(finalCompetitors, 0)
+      setCompetitors(finalCompetitors)
+      setRoundTime(selectedTime)
+      setMatches(generated)
+      setPracticeIterations([{ matches: generated, stats }])
+      setPracticeStats(stats)
+      setPracticeStartedAt(new Date().toISOString())
+      goTo(SCREENS.MATCHES)
+      return
+    }
     const generated = generateRoundRobin(finalCompetitors)
     setCompetitors(finalCompetitors)
     setRoundTime(selectedTime)
     setMatches(generated)
     goTo(SCREENS.MATCHES)
-  }, [goTo, archiveCompletedIfNeeded])
+  }, [goTo, archiveCompletedIfNeeded, competitionMode])
 
   const handleStartBattle = useCallback((matchId) => {
     setActiveMatchId(matchId)
@@ -302,6 +325,44 @@ function AppShell() {
     setActiveMatchId(null)
     goTo(SCREENS.MATCHES)
   }, [competitors, goTo, archiveCompletedIfNeeded])
+
+  const handleNextPracticeIteration = useCallback(() => {
+    const nextIdx = practiceIterations.length
+    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx)
+    setMatches(generated)
+    setActiveMatchId(null)
+    setPracticeIterations((prev) => [...prev, { matches: generated, stats }])
+    setPracticeStats((prev) => mergeStats(prev, stats))
+    goTo(SCREENS.MATCHES)
+  }, [competitors, practiceIterations.length, goTo])
+
+  const goToPracticeHistory = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.PRACTICE_HISTORY }, '', '/practice-history')
+    setScreen(SCREENS.PRACTICE_HISTORY)
+  }, [])
+
+  const handleFinishPractice = useCallback(async () => {
+    try {
+      await savePracticeSession({
+        started_at: practiceStartedAt,
+        ended_at: new Date().toISOString(),
+        competitors,
+        iterations: practiceIterations,
+        stats: practiceStats,
+      })
+      await bumpFrequency(competitors)
+    } catch (err) {
+      console.error('Finish practice failed:', err)
+    }
+    clearState()
+    clearRemote()
+    setMatches([])
+    setActiveMatchId(null)
+    setPracticeIterations([])
+    setPracticeStats({ appearances: {}, pairs: [] })
+    setPracticeStartedAt(null)
+    goToPracticeHistory()
+  }, [savePracticeSession, practiceStartedAt, competitors, practiceIterations, practiceStats, bumpFrequency, clearRemote, goToPracticeHistory])
 
   const activeMatch = matches.find((m) => m.id === activeMatchId) ?? null
   const nonByeMatches = matches.filter((m) => !m.isBye)
@@ -395,6 +456,7 @@ function AppShell() {
             onOpenBlog={(filter) => { setMenuOpen(false); goToBlog(filter) }}
             onOpenGuia={() => { setMenuOpen(false); goToGuia() }}
             onOpenPatterns={() => { setMenuOpen(false); goToPatterns() }}
+            onOpenPracticeHistory={() => { setMenuOpen(false); goToPracticeHistory() }}
           />
         )}
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
@@ -430,6 +492,9 @@ function AppShell() {
               onQuickClose={handleQuickClose}
               onViewLeaderboard={handleViewLeaderboard}
               onReset={handleReset}
+              practiceIterationNumber={!isTournament ? practiceIterations.length : 0}
+              onNextPracticeIteration={!isTournament ? handleNextPracticeIteration : null}
+              onFinishPractice={!isTournament ? handleFinishPractice : null}
             />
           )}
 
@@ -485,6 +550,10 @@ function AppShell() {
               onBack={() => { window.history.back() }}
               onOpenBlogPost={goToBlogPost}
             />
+          )}
+
+          {screen === SCREENS.PRACTICE_HISTORY && (
+            <PracticeHistoryScreen onBack={() => { window.history.back() }} />
           )}
         </main>
       </div>

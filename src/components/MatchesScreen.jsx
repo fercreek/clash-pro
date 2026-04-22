@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Trophy, RotateCcw, CheckCircle, Clock, Coffee, Zap, X, Minus } from 'lucide-react'
+import { Trophy, RotateCcw, CheckCircle, Clock, Coffee, Zap, X, Minus, Repeat, Flag } from 'lucide-react'
 import { calculateScores } from '../utils/roundRobin'
 import { showMatchesLeaderboardControls, showMatchesMiniRanking } from '../lib/featurePolicy'
 
@@ -123,6 +123,9 @@ export default function MatchesScreen({
   onQuickClose,
   onViewLeaderboard,
   onReset,
+  practiceIterationNumber = 0,
+  onNextPracticeIteration = null,
+  onFinishPractice = null,
 }) {
   const [viewMode, setViewMode] = useState('list')
   const [expandedId, setExpandedId] = useState(null)
@@ -172,7 +175,9 @@ export default function MatchesScreen({
     <div className="p-4 max-w-lg mx-auto space-y-5">
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-black">Batallas</h2>
+          <h2 className="text-xl font-black">
+            {isTournament ? 'Batallas' : practiceIterationNumber > 0 ? `Iteración ${practiceIterationNumber}` : 'Rondas'}
+          </h2>
           <p className="text-zinc-400 text-xs">
             {completed.length}/{completed.length + pending.length} completadas
           </p>
@@ -267,6 +272,30 @@ export default function MatchesScreen({
                   VER GANADOR
                 </button>
               )}
+              {!isTournament && (onNextPracticeIteration || onFinishPractice) && (
+                <div className="flex flex-col gap-2">
+                  {onNextPracticeIteration && (
+                    <button
+                      type="button"
+                      onClick={onNextPracticeIteration}
+                      className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 rounded-xl font-black text-base tracking-wide transition-colors"
+                    >
+                      <Repeat size={18} strokeWidth={2.5} />
+                      SIGUIENTE ITERACIÓN
+                    </button>
+                  )}
+                  {onFinishPractice && (
+                    <button
+                      type="button"
+                      onClick={onFinishPractice}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl font-bold text-sm tracking-wide transition-colors"
+                    >
+                      <Flag size={15} />
+                      Terminar práctica
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -339,6 +368,30 @@ export default function MatchesScreen({
                 >
                   VER GANADOR
                 </button>
+              )}
+              {!isTournament && (onNextPracticeIteration || onFinishPractice) && (
+                <div className="flex flex-col gap-2">
+                  {onNextPracticeIteration && (
+                    <button
+                      type="button"
+                      onClick={onNextPracticeIteration}
+                      className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 rounded-xl font-black text-base tracking-wide transition-colors"
+                    >
+                      <Repeat size={18} strokeWidth={2.5} />
+                      SIGUIENTE ITERACIÓN
+                    </button>
+                  )}
+                  {onFinishPractice && (
+                    <button
+                      type="button"
+                      onClick={onFinishPractice}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl font-bold text-sm tracking-wide transition-colors"
+                    >
+                      <Flag size={15} />
+                      Terminar práctica
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
