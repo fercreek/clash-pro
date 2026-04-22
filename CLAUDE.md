@@ -186,6 +186,22 @@ Vercel usa Node 20+ automáticamente. El build (`npm run build`) no funciona loc
 
 ---
 
+## Spec-kit workflow
+
+Features grandes se documentan en `specs/<nombre-feature>/` antes de codear. Patrón:
+
+```
+specs/<feature>/
+  spec.md     ← contrato: WHAT. Problem, user stories, acceptance criteria, data model, out-of-scope.
+  plan.md     ← arquitectura: WHY/HOW. Current state (paths:líneas), decisiones, file tree, risks.
+  tasks.md    ← ejecución ordenada por fases con rutas exactas.
+  FUTURE_DECISION.md  (opcional) ← decisiones pospuestas con disparador para resolver.
+```
+
+Regla: feature nuevo con >3 archivos o cambio de DB arranca con los 3 mds. Commits por fase (`feat(area): descripción`). Ver ejemplo en `specs/quick-practice-roster/`.
+
+---
+
 ## Estructura de archivos
 
 ```
@@ -206,4 +222,7 @@ supabase/
 
 scripts/
   new-migration.js     ← generador de migraciones (npm run db:new)
+
+specs/
+  <feature>/           ← spec-kit: spec.md + plan.md + tasks.md por feature grande
 ```
