@@ -43,6 +43,8 @@ const SCREENS = {
   BLOG_POST: 'blog_post',
   GUIA: 'guia',
   PATTERNS: 'patterns',
+  PRACTICE_SETUP: 'practice_setup',
+  PRACTICE_LIVE: 'practice_live',
   PRACTICE_HISTORY: 'practice_history',
 }
 
@@ -61,7 +63,10 @@ function computeBootState() {
   const competitionMode = loaded.competitionMode ?? COMPETITION_MODE.tournament
   let screen = loaded.screen
   if (competitionMode === COMPETITION_MODE.practice && screen === SCREENS.LEADERBOARD) {
-    screen = SCREENS.MATCHES
+    screen = SCREENS.PRACTICE_LIVE
+  }
+  if (competitionMode === COMPETITION_MODE.practice && screen === SCREENS.MATCHES) {
+    screen = SCREENS.PRACTICE_LIVE
   }
   const norm = normalizeHydratedScreen(screen, loaded.activeMatchId)
   const hasActiveMatches = (loaded.matches?.length ?? 0) > 0
@@ -94,11 +99,14 @@ function AppShell() {
     const path = window.location.pathname
     if (path.startsWith('/blog/')) return SCREENS.BLOG_POST
     if (path === '/blog') return SCREENS.BLOG
-    if (path === '/practice') return SCREENS.GUIA
+    if (path === '/guide' || path === '/practice') return SCREENS.GUIA
     if (path === '/patterns') return SCREENS.PATTERNS
-    if (path === '/practice-history') return SCREENS.PRACTICE_HISTORY
+    if (path === '/practice/setup') return SCREENS.PRACTICE_SETUP
+    if (path === '/practice/live') return SCREENS.PRACTICE_LIVE
+    if (path === '/practice/history' || path === '/practice-history') return SCREENS.PRACTICE_HISTORY
     if (path === '/dashboard') return SCREENS.DASHBOARD
-    return boot.screen === SCREENS.SETUP ? SCREENS.DASHBOARD : boot.screen
+    if (boot.screen === SCREENS.SETUP || boot.screen === SCREENS.PRACTICE_SETUP) return SCREENS.DASHBOARD
+    return boot.screen
   })
   const [competitors, setCompetitors] = useState(boot.competitors)
   const [roundTime, setRoundTime] = useState(boot.roundTime)
@@ -108,6 +116,7 @@ function AppShell() {
   const [practiceIterations, setPracticeIterations] = useState([])
   const [practiceStats, setPracticeStats] = useState({ appearances: {}, pairs: [] })
   const [practiceStartedAt, setPracticeStartedAt] = useState(null)
+  const [currentPracticeRound, setCurrentPracticeRound] = useState(1)
 
   const isTournament = competitionMode === COMPETITION_MODE.tournament
 
@@ -127,6 +136,8 @@ function AppShell() {
         if (cur === SCREENS.MATCHES) return SCREENS.SETUP
         if (cur === SCREENS.SETUP) return SCREENS.DASHBOARD
         if (cur === SCREENS.BLOG_POST) return SCREENS.BLOG
+        if (cur === SCREENS.PRACTICE_LIVE) return SCREENS.PRACTICE_SETUP
+        if (cur === SCREENS.PRACTICE_SETUP) return SCREENS.DASHBOARD
         if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS || cur === SCREENS.PRACTICE_HISTORY) return SCREENS.DASHBOARD
         return cur
       })
@@ -148,8 +159,18 @@ function AppShell() {
   }, [])
 
   const goToGuia = useCallback(() => {
-    window.history.pushState({ screen: SCREENS.GUIA }, '', '/practice')
+    window.history.pushState({ screen: SCREENS.GUIA }, '', '/guide')
     setScreen(SCREENS.GUIA)
+  }, [])
+
+  const goToPracticeSetup = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.PRACTICE_SETUP }, '', '/practice/setup')
+    setScreen(SCREENS.PRACTICE_SETUP)
+  }, [])
+
+  const goToPracticeLive = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.PRACTICE_LIVE }, '', '/practice/live')
+    setScreen(SCREENS.PRACTICE_LIVE)
   }, [])
 
   const goToPatterns = useCallback(() => {
@@ -162,8 +183,8 @@ function AppShell() {
       if (window.location.pathname === '/dashboard') return
       const norm = normalizeHydratedScreen(payload.screen, payload.activeMatchId)
       let s = norm.screen
-      if (payload.competitionMode === COMPETITION_MODE.practice && s === SCREENS.LEADERBOARD) {
-        s = SCREENS.MATCHES
+      if (payload.competitionMode === COMPETITION_MODE.practice) {
+        if (s === SCREENS.LEADERBOARD || s === SCREENS.MATCHES) s = SCREENS.PRACTICE_LIVE
       }
       setCompetitors(payload.competitors)
       setMatches(payload.matches)
@@ -252,7 +273,8 @@ function AppShell() {
       setPracticeIterations([{ matches: generated, stats }])
       setPracticeStats(stats)
       setPracticeStartedAt(new Date().toISOString())
-      goTo(SCREENS.MATCHES)
+      setCurrentPracticeRound(1)
+      goToPracticeLive()
       return
     }
     const generated = generateRoundRobin(finalCompetitors)
@@ -260,7 +282,7 @@ function AppShell() {
     setRoundTime(selectedTime)
     setMatches(generated)
     goTo(SCREENS.MATCHES)
-  }, [goTo, archiveCompletedIfNeeded, competitionMode])
+  }, [goTo, archiveCompletedIfNeeded, competitionMode, goToPracticeLive])
 
   const handleStartBattle = useCallback((matchId) => {
     setActiveMatchId(matchId)
@@ -306,8 +328,8 @@ function AppShell() {
 
   const handleDashboardPractice = useCallback(() => {
     setCompetitionMode(COMPETITION_MODE.practice)
-    goTo(SCREENS.SETUP)
-  }, [goTo])
+    goToPracticeSetup()
+  }, [goToPracticeSetup])
 
   const handleReset = useCallback(() => {
     archiveCompletedIfNeeded()
@@ -333,11 +355,16 @@ function AppShell() {
     setActiveMatchId(null)
     setPracticeIterations((prev) => [...prev, { matches: generated, stats }])
     setPracticeStats((prev) => mergeStats(prev, stats))
-    goTo(SCREENS.MATCHES)
-  }, [competitors, practiceIterations.length, goTo])
+    setCurrentPracticeRound(1)
+    goToPracticeLive()
+  }, [competitors, practiceIterations.length, goToPracticeLive])
+
+  const handleNextPracticeRound = useCallback(() => {
+    setCurrentPracticeRound((r) => r + 1)
+  }, [])
 
   const goToPracticeHistory = useCallback(() => {
-    window.history.pushState({ screen: SCREENS.PRACTICE_HISTORY }, '', '/practice-history')
+    window.history.pushState({ screen: SCREENS.PRACTICE_HISTORY }, '', '/practice/history')
     setScreen(SCREENS.PRACTICE_HISTORY)
   }, [])
 
@@ -361,6 +388,7 @@ function AppShell() {
     setPracticeIterations([])
     setPracticeStats({ appearances: {}, pairs: [] })
     setPracticeStartedAt(null)
+    setCurrentPracticeRound(1)
     goToPracticeHistory()
   }, [savePracticeSession, practiceStartedAt, competitors, practiceIterations, practiceStats, bumpFrequency, clearRemote, goToPracticeHistory])
 
@@ -474,7 +502,7 @@ function AppShell() {
             />
           )}
 
-          {screen === SCREENS.SETUP && (
+          {(screen === SCREENS.SETUP || screen === SCREENS.PRACTICE_SETUP) && (
             <SetupScreen
               initialCompetitors={competitors}
               initialRoundTime={roundTime}
@@ -492,9 +520,23 @@ function AppShell() {
               onQuickClose={handleQuickClose}
               onViewLeaderboard={handleViewLeaderboard}
               onReset={handleReset}
-              practiceIterationNumber={!isTournament ? practiceIterations.length : 0}
-              onNextPracticeIteration={!isTournament ? handleNextPracticeIteration : null}
-              onFinishPractice={!isTournament ? handleFinishPractice : null}
+            />
+          )}
+
+          {screen === SCREENS.PRACTICE_LIVE && (
+            <MatchesScreen
+              matches={matches}
+              competitors={competitors}
+              isTournament={false}
+              onStartBattle={handleStartBattle}
+              onQuickClose={handleQuickClose}
+              onViewLeaderboard={handleViewLeaderboard}
+              onReset={handleReset}
+              visibleRound={currentPracticeRound}
+              practiceIterationNumber={practiceIterations.length}
+              onNextRound={handleNextPracticeRound}
+              onNextPracticeIteration={handleNextPracticeIteration}
+              onFinishPractice={handleFinishPractice}
             />
           )}
 

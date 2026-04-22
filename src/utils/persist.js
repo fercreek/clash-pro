@@ -2,7 +2,7 @@ import { COMPETITION_MODE } from '../lib/featurePolicy'
 
 const STORAGE_KEY = 'clashpro:v1'
 
-const VALID_SCREENS = new Set(['setup', 'matches', 'battle', 'leaderboard'])
+const VALID_SCREENS = new Set(['setup', 'matches', 'battle', 'leaderboard', 'practice_setup', 'practice_live'])
 
 function isValidMatch(m) {
   if (!m || typeof m !== 'object') return false

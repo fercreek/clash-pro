@@ -123,7 +123,9 @@ export default function MatchesScreen({
   onQuickClose,
   onViewLeaderboard,
   onReset,
+  visibleRound = null,
   practiceIterationNumber = 0,
+  onNextRound = null,
   onNextPracticeIteration = null,
   onFinishPractice = null,
 }) {
@@ -137,13 +139,25 @@ export default function MatchesScreen({
     setExpandedId(null)
   }
 
-  const pending = useMemo(() => matches.filter((m) => !m.completed && !m.isBye), [matches])
-  const completed = useMemo(() => matches.filter((m) => m.completed && !m.isBye), [matches])
-  const byes = useMemo(() => matches.filter((m) => m.isBye), [matches])
+  const totalRounds = useMemo(() => {
+    const nums = matches.map((m) => m.round).filter((r) => typeof r === 'number')
+    return nums.length ? Math.max(...nums) : 0
+  }, [matches])
+
+  const scopedMatches = useMemo(() => {
+    if (visibleRound == null) return matches
+    return matches.filter((m) => m.round === visibleRound)
+  }, [matches, visibleRound])
+
+  const isLastRound = visibleRound != null && visibleRound >= totalRounds
+
+  const pending = useMemo(() => scopedMatches.filter((m) => !m.completed && !m.isBye), [scopedMatches])
+  const completed = useMemo(() => scopedMatches.filter((m) => m.completed && !m.isBye), [scopedMatches])
+  const byes = useMemo(() => scopedMatches.filter((m) => m.isBye), [scopedMatches])
 
   const roundsSections = useMemo(() => {
     const map = new Map()
-    for (const m of matches) {
+    for (const m of scopedMatches) {
       const r = m.round != null ? m.round : -1
       if (!map.has(r)) map.set(r, [])
       map.get(r).push(m)
@@ -158,7 +172,7 @@ export default function MatchesScreen({
       label: k === -1 ? 'Sin ronda' : `Ronda ${k}`,
       items: map.get(k),
     }))
-  }, [matches])
+  }, [scopedMatches])
 
   const leaderboard = useMemo(
     () => calculateScores(competitors, matches),
@@ -176,10 +190,17 @@ export default function MatchesScreen({
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-black">
-            {isTournament ? 'Batallas' : practiceIterationNumber > 0 ? `Iteración ${practiceIterationNumber}` : 'Rondas'}
+            {isTournament
+              ? 'Batallas'
+              : visibleRound != null
+                ? `Ronda ${visibleRound}/${totalRounds}`
+                : practiceIterationNumber > 0 ? `Iteración ${practiceIterationNumber}` : 'Rondas'}
           </h2>
           <p className="text-zinc-400 text-xs">
             {completed.length}/{completed.length + pending.length} completadas
+            {!isTournament && practiceIterationNumber > 0 && (
+              <span className="text-zinc-600"> · Iteración {practiceIterationNumber}</span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -261,7 +282,11 @@ export default function MatchesScreen({
           {allDone && (
             <div className="text-center space-y-3 py-4">
               <p className="text-green-400 font-bold text-lg">
-                {isTournament ? '¡Torneo completado!' : '¡Ronda completada!'}
+                {isTournament
+                  ? '¡Torneo completado!'
+                  : visibleRound != null && !isLastRound
+                    ? `¡Ronda ${visibleRound} completada!`
+                    : '¡Iteración completada!'}
               </p>
               {isTournament && (
                 <button
@@ -272,7 +297,17 @@ export default function MatchesScreen({
                   VER GANADOR
                 </button>
               )}
-              {!isTournament && (onNextPracticeIteration || onFinishPractice) && (
+              {!isTournament && visibleRound != null && !isLastRound && onNextRound && (
+                <button
+                  type="button"
+                  onClick={onNextRound}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 rounded-xl font-black text-base tracking-wide transition-colors"
+                >
+                  <Repeat size={18} strokeWidth={2.5} />
+                  SIGUIENTE RONDA
+                </button>
+              )}
+              {!isTournament && (visibleRound == null || isLastRound) && (onNextPracticeIteration || onFinishPractice) && (
                 <div className="flex flex-col gap-2">
                   {onNextPracticeIteration && (
                     <button
@@ -358,7 +393,11 @@ export default function MatchesScreen({
           {allDone && (
             <div className="text-center space-y-3 py-4">
               <p className="text-green-400 font-bold text-lg">
-                {isTournament ? '¡Torneo completado!' : '¡Ronda completada!'}
+                {isTournament
+                  ? '¡Torneo completado!'
+                  : visibleRound != null && !isLastRound
+                    ? `¡Ronda ${visibleRound} completada!`
+                    : '¡Iteración completada!'}
               </p>
               {isTournament && (
                 <button
@@ -369,7 +408,17 @@ export default function MatchesScreen({
                   VER GANADOR
                 </button>
               )}
-              {!isTournament && (onNextPracticeIteration || onFinishPractice) && (
+              {!isTournament && visibleRound != null && !isLastRound && onNextRound && (
+                <button
+                  type="button"
+                  onClick={onNextRound}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 rounded-xl font-black text-base tracking-wide transition-colors"
+                >
+                  <Repeat size={18} strokeWidth={2.5} />
+                  SIGUIENTE RONDA
+                </button>
+              )}
+              {!isTournament && (visibleRound == null || isLastRound) && (onNextPracticeIteration || onFinishPractice) && (
                 <div className="flex flex-col gap-2">
                   {onNextPracticeIteration && (
                     <button
