@@ -13,3 +13,7 @@ npm-debug.log*
 coverage
 *.local
 .claude
+playwright-report
+test-results
+supabase/.temp
+src/audio/samples/_backup
