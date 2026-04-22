@@ -142,7 +142,8 @@ export const REFERENCE_PATTERNS = [
 export const STEPS_PER_PATTERN = 16
 
 export const INSTRUMENT_SYNTHS = {
-  clave(ctx, t) {
+  clave(ctx, t, dest) {
+    const out = dest ?? ctx.destination
     const vel = 0.85 + Math.random() * 0.30
     // 2ms click transient (attack)
     const cb = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.002), ctx.sampleRate)
@@ -150,17 +151,18 @@ export const INSTRUMENT_SYNTHS = {
     const cs = ctx.createBufferSource(); cs.buffer = cb
     const cbp = ctx.createBiquadFilter(); cbp.type = 'bandpass'; cbp.frequency.value = 3000; cbp.Q.value = 8
     const cg = ctx.createGain(); cg.gain.setValueAtTime(0.8 * vel, t); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.002)
-    cs.connect(cbp); cbp.connect(cg); cg.connect(ctx.destination); cs.start(t)
+    cs.connect(cbp); cbp.connect(cg); cg.connect(out); cs.start(t)
     // Inharmonic wood partials — cylindrical bar modes ratio 1 : 2.756
-    [[2200, 0.35], [6072, 0.14]].forEach(([freq, g]) => {
+    ;[[2200, 0.35], [6072, 0.14]].forEach(([freq, g]) => {
       const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq
       const og = ctx.createGain()
       og.gain.setValueAtTime(g * vel, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.055)
-      o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + 0.06)
+      o.connect(og); og.connect(out); o.start(t); o.stop(t + 0.06)
     })
   },
 
-  conga(ctx, t) {
+  conga(ctx, t, dest) {
+    const out = dest ?? ctx.destination
     const vel = 0.85 + Math.random() * 0.30
     // Fundamental: two-stage sweep (fast elastic snap then slow settle)
     const f1 = ctx.createOscillator(); f1.type = 'sine'
@@ -169,28 +171,29 @@ export const INSTRUMENT_SYNTHS = {
     f1.frequency.exponentialRampToValueAtTime(185, t + 0.30)
     const g1 = ctx.createGain()
     g1.gain.setValueAtTime(0.65 * vel, t); g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.30)
-    f1.connect(g1); g1.connect(ctx.destination); f1.start(t); f1.stop(t + 0.31)
+    f1.connect(g1); g1.connect(out); f1.start(t); f1.stop(t + 0.31)
     // First overtone — membrane Bessel mode ratio 1.59×
     const f2 = ctx.createOscillator(); f2.type = 'sine'
     f2.frequency.setValueAtTime(445, t); f2.frequency.exponentialRampToValueAtTime(335, t + 0.015)
     const g2 = ctx.createGain()
     g2.gain.setValueAtTime(0.25 * vel, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.10)
-    f2.connect(g2); g2.connect(ctx.destination); f2.start(t); f2.stop(t + 0.11)
+    f2.connect(g2); g2.connect(out); f2.start(t); f2.stop(t + 0.11)
     // Shell body thump
     const f3 = ctx.createOscillator(); f3.type = 'sine'; f3.frequency.value = 90
     const g3 = ctx.createGain()
     g3.gain.setValueAtTime(0.30 * vel, t); g3.gain.exponentialRampToValueAtTime(0.0001, t + 0.05)
-    f3.connect(g3); g3.connect(ctx.destination); f3.start(t); f3.stop(t + 0.06)
+    f3.connect(g3); g3.connect(out); f3.start(t); f3.stop(t + 0.06)
     // Skin slap transient
     const nb = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.005), ctx.sampleRate)
     const nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
     const ns = ctx.createBufferSource(); ns.buffer = nb
     const nhp = ctx.createBiquadFilter(); nhp.type = 'bandpass'; nhp.frequency.value = 900; nhp.Q.value = 2
     const ng = ctx.createGain(); ng.gain.setValueAtTime(0.45 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.005)
-    ns.connect(nhp); nhp.connect(ng); ng.connect(ctx.destination); ns.start(t)
+    ns.connect(nhp); nhp.connect(ng); ng.connect(out); ns.start(t)
   },
 
-  cowbell(ctx, t) {
+  cowbell(ctx, t, dest) {
+    const out = dest ?? ctx.destination
     const vel = 0.85 + Math.random() * 0.30
     // FM synthesis — carrier 562Hz, modulator 845Hz (ratio 1.503, inharmonic metal mode)
     const mod = ctx.createOscillator(); mod.type = 'sine'; mod.frequency.value = 845
@@ -202,15 +205,16 @@ export const INSTRUMENT_SYNTHS = {
     const car = ctx.createOscillator(); car.type = 'sine'; car.frequency.value = 562
     modGain.connect(car.frequency)  // FM: modulator drives carrier pitch
     // Two-stage output: fast clang then slow metallic ring
-    const out = ctx.createGain()
-    out.gain.setValueAtTime(0.5 * vel, t)
-    out.gain.exponentialRampToValueAtTime(0.20 * vel, t + 0.05)
-    out.gain.exponentialRampToValueAtTime(0.0001, t + 0.40)
-    car.connect(out); out.connect(ctx.destination)
+    const og = ctx.createGain()
+    og.gain.setValueAtTime(0.5 * vel, t)
+    og.gain.exponentialRampToValueAtTime(0.20 * vel, t + 0.05)
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.40)
+    car.connect(og); og.connect(out)
     mod.start(t); mod.stop(t + 0.41); car.start(t); car.stop(t + 0.41)
   },
 
-  maracas(ctx, t) {
+  maracas(ctx, t, dest) {
+    const out = dest ?? ctx.destination
     const vel = 0.85 + Math.random() * 0.30
     const dur = 0.055
     // Pre-shape noise buffer to simulate seed density (denser at start, sparse tail)
@@ -224,17 +228,18 @@ export const INSTRUMENT_SYNTHS = {
     const bp1 = ctx.createBiquadFilter(); bp1.type = 'bandpass'; bp1.frequency.value = 4200; bp1.Q.value = 0.8
     const bp2 = ctx.createBiquadFilter(); bp2.type = 'bandpass'; bp2.frequency.value = 7500; bp2.Q.value = 1.2
     const mix = ctx.createGain(); mix.gain.value = 1.0
-    const out = ctx.createGain()
-    out.gain.setValueAtTime(0.0001, t)
-    out.gain.linearRampToValueAtTime(0.35 * vel, t + 0.001)
-    out.gain.exponentialRampToValueAtTime(0.15 * vel, t + 0.020)
-    out.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    const og = ctx.createGain()
+    og.gain.setValueAtTime(0.0001, t)
+    og.gain.linearRampToValueAtTime(0.35 * vel, t + 0.001)
+    og.gain.exponentialRampToValueAtTime(0.15 * vel, t + 0.020)
+    og.gain.exponentialRampToValueAtTime(0.0001, t + dur)
     src.connect(bp1); bp1.connect(mix)
     src.connect(bp2); bp2.connect(mix)
-    mix.connect(out); out.connect(ctx.destination); src.start(t)
+    mix.connect(og); og.connect(out); src.start(t)
   },
 
-  bajo(ctx, t) {
+  bajo(ctx, t, dest) {
+    const out = dest ?? ctx.destination
     const vel = 0.85 + Math.random() * 0.30
     const freq = 82  // Ab — between Eb and F of tumbao
 
@@ -249,14 +254,14 @@ export const INSTRUMENT_SYNTHS = {
     g.gain.setValueAtTime(0.0001, t)
     g.gain.linearRampToValueAtTime(0.55 * vel, t + 0.006)
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28)
-    o.connect(lp); lp.connect(g); g.connect(ctx.destination)
+    o.connect(lp); lp.connect(g); g.connect(out)
     o.start(t); o.stop(t + 0.29)
 
     // Sub sine for low-end weight
     const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = freq
     const subG = ctx.createGain()
     subG.gain.setValueAtTime(0.35 * vel, t); subG.gain.exponentialRampToValueAtTime(0.0001, t + 0.20)
-    sub.connect(subG); subG.connect(ctx.destination)
+    sub.connect(subG); subG.connect(out)
     sub.start(t); sub.stop(t + 0.21)
 
     // Pluck click transient
@@ -265,7 +270,7 @@ export const INSTRUMENT_SYNTHS = {
     const ns = ctx.createBufferSource(); ns.buffer = nb
     const nlp = ctx.createBiquadFilter(); nlp.type = 'bandpass'; nlp.frequency.value = 500; nlp.Q.value = 2
     const ng = ctx.createGain(); ng.gain.setValueAtTime(0.22 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.007)
-    ns.connect(nlp); nlp.connect(ng); ng.connect(ctx.destination); ns.start(t)
+    ns.connect(nlp); nlp.connect(ng); ng.connect(out); ns.start(t)
   },
 }
 

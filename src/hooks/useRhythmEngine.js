@@ -49,7 +49,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
         src.connect(g); g.connect(dest)
         src.start(ht)
       } else {
-        INSTRUMENT_SYNTHS[id]?.(ctx, ht)
+        INSTRUMENT_SYNTHS[id]?.(ctx, ht, dest)
       }
     })
   }, [])
