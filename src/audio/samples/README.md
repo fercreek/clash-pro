@@ -1,13 +1,7 @@
 # Percussion samples
 
-Drop CC0 WAV files here named:
+The app ships with `*.mp3` one-shots in this folder (see [CREDITS.md](./CREDITS.md)). Vite includes them at build time; `loadSamples()` decodes them into the Web Audio graph.
 
-- `clave.wav` (~80ms)
-- `conga.wav` (~300ms)
-- `cowbell.wav` (~400ms)
-- `maracas.wav` (~40ms)
-- `bajo.wav` (~300ms)
+To replace, keep the same basenames: `clave`, `conga`, `cowbell`, `maracas`, `bajo` (`.wav`, `.mp3` or `.flac`).
 
-Source: [freesound.org](https://freesound.org) — filter License → **Creative Commons 0**.
-
-Until files exist, `INSTRUMENT_SYNTHS` fallback synthesis plays.
+If a file is missing or fails to decode, `INSTRUMENT_SYNTHS` in `src/data/rhythmPatterns.js` is used for that track.

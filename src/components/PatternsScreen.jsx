@@ -9,6 +9,8 @@ import {
 } from '../data/rhythmPatterns'
 import { useRhythmEngine } from '../hooks/useRhythmEngine'
 import { listPatterns, savePattern, deletePattern } from '../lib/customPatterns'
+import { getCtx } from '../audio/ctx'
+import { loadSamples } from '../audio/sampleCache'
 
 function MiniGrid({ pattern, currentStep = -1, isPlaying = false, compact = false }) {
   const rowH = compact ? 'h-1.5' : 'h-2.5'
@@ -644,6 +646,10 @@ export default function PatternsScreen({ onBack, onOpenBlogPost }) {
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
+  useEffect(() => {
+    getCtx()
+    loadSamples()
+  }, [])
 
   const handleNew = () => { setEditing(null); setView('editor') }
   const handleEdit = (it) => { setEditing(it); setView('editor') }

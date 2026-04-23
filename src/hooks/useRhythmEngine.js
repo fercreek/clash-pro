@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { INSTRUMENTS, DEFAULT_BPM, INSTRUMENT_SYNTHS } from '../data/rhythmPatterns'
 import { getCtx, getDestination } from '../audio/ctx'
-import { loadSamples, getBuffer } from '../audio/sampleCache'
+import { loadSamples, playSampleHit } from '../audio/sampleCache'
 
 const STEPS = 16
 
@@ -39,16 +39,7 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
       const dest = getDestination()
       if (!dest) return
 
-      const buffer = getBuffer(id)
-      if (buffer) {
-        const src = ctx.createBufferSource()
-        src.buffer = buffer
-        src.playbackRate.value = 0.95 + Math.random() * 0.10
-        const g = ctx.createGain()
-        g.gain.setValueAtTime(0.85 + Math.random() * 0.15, ht)
-        src.connect(g); g.connect(dest)
-        src.start(ht)
-      } else {
+      if (!playSampleHit(ctx, id, ht, dest)) {
         INSTRUMENT_SYNTHS[id]?.(ctx, ht, dest)
       }
     })
@@ -75,15 +66,31 @@ export function useRhythmEngine(initialPattern = null, initialBpm = DEFAULT_BPM)
     timerRef.current = setTimeout(scheduleAhead, 25)
   }, [playStep])
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     const ctx = getCtx()
     if (!ctx) return
     if (!patternRef.current) return
-    loadSamples()
     isPlayingRef.current = true
-    stepRef.current = 0
-    nextNoteTimeRef.current = ctx.currentTime + 0.05
     setIsPlaying(true)
+    try {
+      await loadSamples()
+    } catch (e) {
+      console.warn(e)
+    }
+    if (!isPlayingRef.current) return
+    if (!patternRef.current) {
+      isPlayingRef.current = false
+      setIsPlaying(false)
+      return
+    }
+    const ctx2 = getCtx()
+    if (!ctx2) {
+      isPlayingRef.current = false
+      setIsPlaying(false)
+      return
+    }
+    stepRef.current = 0
+    nextNoteTimeRef.current = ctx2.currentTime + 0.05
     scheduleAhead()
   }, [scheduleAhead])
 

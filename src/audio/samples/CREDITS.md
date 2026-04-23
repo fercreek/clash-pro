@@ -1,19 +1,28 @@
-# Percussion sample credits
+# Percussion and bass one-shots (CC0)
 
-All samples sourced from the **OLPC Berklee Sound Library** via [github.com/Tonejs/audio](https://github.com/Tonejs/audio/tree/master/berklee).
+All bundled sounds are from **FreePats** (Creative Commons CC0) unless noted.
 
-Original library: [wiki.laptop.org/go/Sound_samples](http://wiki.laptop.org/go/Sound_samples)
+## World Percussion (freepats/world-percussion)
 
-**License: Creative Commons Attribution 3.0 (CC BY 3.0)** — [creativecommons.org/licenses/by/3.0](https://creativecommons.org/licenses/by/3.0/)
+| File | Source sample |
+|------|----------------|
+| `clave.flac` | `samples/Claves/01.flac` |
+| `conga.flac` | `samples/Conga/v2_01_01.flac` (tumba abierta) |
+| `cowbell.flac` | `samples/Tambourine/01_01.flac` (golpe duro de pandereta, capa cencerro/montuno) |
+| `maracas.flac` | `samples/Maracas/01_01.flac` |
 
-| File | Source | Notes |
-|---|---|---|
-| `clave.mp3`   | `berklee/woodblock_pitched-sol.mp3` | Pitched wood block — stands in for clave |
-| `conga.mp3`   | `berklee/conga_1.mp3`               | Open tone |
-| `cowbell.mp3` | `berklee/cowbell1_big.mp3`          | Big cowbell |
-| `maracas.mp3` | `berklee/egg_shaker1.mp3`           | Egg shaker — same shaker idiom |
-| `bajo.mp3`    | `berklee/bass_string1.mp3`          | Acoustic bass string pluck |
+Repository: [github.com/freepats/world-percussion](https://github.com/freepats/world-percussion)  
+Info: [freepats.zenvoid.org — World and rare percussion](http://freepats.zenvoid.org/Percussion/world-and-rare-percussion.html)
 
-## Attribution requirement
+## Electric bass (freepats/electric-bass-YR)
 
-CC BY 3.0 requires visible credit. ClashPro satisfies this by linking to this file from the app credits / About section.
+| File | Source sample |
+|------|----------------|
+| `bajo.flac` | `samples/finger/C.flac` (Yamaha RBX finger style) |
+
+Repository: [github.com/freepats/electric-bass-YR](https://github.com/freepats/electric-bass-YR)  
+Info: [freepats.zenvoid.org — Clean electric bass](http://freepats.zenvoid.org/ElectricGuitar/clean-electric-bass.html#BassYR)
+
+## License
+
+FreePats uses **CC0 1.0** (public domain dedication). See `LICENSE.txt` in each upstream repository.
