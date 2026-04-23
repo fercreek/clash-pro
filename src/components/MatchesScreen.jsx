@@ -286,6 +286,9 @@ export default function MatchesScreen({
   roundTime = 40,
   onEditSetup = null,
   onCommitPracticeRoster = null,
+  onRegenerate = null,
+  onEditRoster = null,
+  practiceAppearances = null,
   visibleRound = null,
   practiceIterationNumber = 0,
   onNextRound = null,
@@ -476,11 +479,21 @@ export default function MatchesScreen({
               Proyectar
             </button>
           )}
+          {!isTournament && onEditRoster && (
+            <button
+              type="button"
+              onClick={onEditRoster}
+              className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              title="Editar participantes"
+            >
+              <Users size={16} className="text-zinc-400" />
+            </button>
+          )}
           <button
             type="button"
-            onClick={onReset}
+            onClick={isTournament ? onReset : onRegenerate}
             className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
-            title="Reiniciar torneo"
+            title={isTournament ? 'Reiniciar torneo' : 'Regenerar rondas'}
           >
             <RotateCcw size={16} className="text-zinc-400" />
           </button>
@@ -552,6 +565,25 @@ export default function MatchesScreen({
               <span className="text-sm font-bold text-amber-400">{entry.points} pts</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {!isTournament && practiceAppearances && Object.keys(practiceAppearances).length > 0 && (
+        <div className="bg-zinc-900 rounded-xl p-3">
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-2">
+            Bailarines
+          </p>
+          <div className="space-y-1">
+            {Object.entries(practiceAppearances)
+              .sort((a, b) => b[1] - a[1])
+              .map(([name, count], i) => (
+                <div key={name} className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-500 w-4">{i + 1}</span>
+                  <span className="flex-1 text-sm text-white font-medium truncate">{name}</span>
+                  <span className="text-sm font-bold text-red-400">{count}</span>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 

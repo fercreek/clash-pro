@@ -545,6 +545,32 @@ function AppShell() {
     [practiceInitialRepeatCounts, practiceStats.repeats, practiceIterations]
   )
 
+  const handleRegeneratePractice = useCallback(() => {
+    const seed = practiceIterations.length + 1
+    const combinedRepeatCounts = { ...practiceInitialRepeatCounts }
+    for (const [name, n] of Object.entries(practiceStats.repeats ?? {})) {
+      combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
+    }
+    const { matches: generated } = generatePracticeRounds(competitors, seed, combinedRepeatCounts)
+    setMatches(generated)
+    setActiveMatchId(null)
+    setCurrentPracticeRound(1)
+  }, [competitors, practiceIterations.length, practiceInitialRepeatCounts, practiceStats.repeats])
+
+  const handleEditPracticeRoster = useCallback(() => {
+    goToPracticeSetup()
+  }, [goToPracticeSetup])
+
+  const liveAppearances = useMemo(() => {
+    const base = { ...(practiceStats.appearances ?? {}) }
+    for (const m of matches) {
+      if (!m.completed || m.isBye) continue
+      base[m.playerA] = (base[m.playerA] ?? 0) + 1
+      base[m.playerB] = (base[m.playerB] ?? 0) + 1
+    }
+    return base
+  }, [matches, practiceStats.appearances])
+
   const goToPracticeHistory = useCallback(() => {
     window.history.pushState({ screen: SCREENS.PRACTICE_HISTORY }, '', '/practice/history')
     setScreen(SCREENS.PRACTICE_HISTORY)
@@ -837,6 +863,9 @@ function AppShell() {
               onQuickClose={handleQuickClose}
               onViewLeaderboard={handleViewLeaderboard}
               onReset={handleReset}
+              onRegenerate={handleRegeneratePractice}
+              onEditRoster={handleEditPracticeRoster}
+              practiceAppearances={liveAppearances}
               visibleRound={currentPracticeRound}
               practiceIterationNumber={practiceIterations.length}
               onNextRound={handleNextPracticeRound}
