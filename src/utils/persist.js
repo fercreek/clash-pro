@@ -20,6 +20,12 @@ function normalizeCompetitionMode(raw) {
   return COMPETITION_MODE.tournament
 }
 
+function normalizeBattleRoundCount(raw) {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n)) return 4
+  return Math.min(4, Math.max(1, Math.floor(n)))
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -37,6 +43,10 @@ export function loadState() {
     const competitionMode = normalizeCompetitionMode(
       data.version >= 2 ? data.competitionMode : COMPETITION_MODE.tournament
     )
+    const battleRoundCount =
+      data.version >= 2 && data.battleRoundCount != null
+        ? normalizeBattleRoundCount(data.battleRoundCount)
+        : 4
     return {
       screen: data.screen,
       competitors: data.competitors,
@@ -44,6 +54,7 @@ export function loadState() {
       matches: data.matches,
       activeMatchId: data.activeMatchId ?? null,
       competitionMode,
+      battleRoundCount,
       savedAt: data.savedAt,
     }
   } catch {
@@ -62,6 +73,7 @@ export function saveState(snapshot) {
       matches: snapshot.matches,
       activeMatchId: snapshot.activeMatchId ?? null,
       competitionMode: normalizeCompetitionMode(snapshot.competitionMode),
+      battleRoundCount: normalizeBattleRoundCount(snapshot.battleRoundCount),
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch {}

@@ -3,27 +3,55 @@ import { getCtx, getDestination } from '../audio/ctx'
 
 const MUTE_KEY = 'clashpro:soundMuted'
 
-function synthCowbell(ctx, dest, t, gain = 1.0, decay = 0.35) {
-  const freqs = [540, 800]
-  const filter = ctx.createBiquadFilter()
-  filter.type = 'bandpass'
-  filter.frequency.value = 750
-  filter.Q.value = 1.2
-  filter.connect(dest)
-
-  const vca = ctx.createGain()
-  vca.connect(filter)
-  vca.gain.setValueAtTime(gain, t)
-  vca.gain.exponentialRampToValueAtTime(0.0001, t + decay)
-
-  freqs.forEach((freq) => {
-    const osc = ctx.createOscillator()
-    osc.type = 'square'
-    osc.frequency.value = freq
-    osc.connect(vca)
-    osc.start(t)
-    osc.stop(t + decay + 0.05)
-  })
+function ringBellHit(ctx, dest, t, vel = 1) {
+  const f0 = 756
+  const sh = ctx.createBiquadFilter()
+  sh.type = 'highshelf'
+  sh.frequency.value = 2000
+  sh.gain.value = 3.5
+  sh.connect(dest)
+  const bus = ctx.createGain()
+  bus.connect(sh)
+  const parts = [
+    { m: 1, a: 1, d: 1.15 },
+    { m: 2.19, a: 0.52, d: 0.88 },
+    { m: 2.89, a: 0.33, d: 0.65 },
+    { m: 3.45, a: 0.18, d: 0.5 },
+    { m: 4.14, a: 0.1, d: 0.38 },
+  ]
+  for (const p of parts) {
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    const fr = f0 * p.m
+    o.frequency.setValueAtTime(fr, t)
+    o.frequency.exponentialRampToValueAtTime(fr * 0.985, t + 0.18)
+    const g = ctx.createGain()
+    const pk = 0.14 * p.a * vel
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.linearRampToValueAtTime(pk, t + 0.002)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + p.d)
+    o.connect(g)
+    g.connect(bus)
+    o.start(t)
+    o.stop(t + p.d + 0.05)
+  }
+  const nlen = Math.max(1, Math.ceil(0.0022 * ctx.sampleRate))
+  const nb = ctx.createBuffer(1, nlen, ctx.sampleRate)
+  const nd = nb.getChannelData(0)
+  for (let i = 0; i < nlen; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nlen)
+  const nsrc = ctx.createBufferSource()
+  nsrc.buffer = nb
+  const nhp = ctx.createBiquadFilter()
+  nhp.type = 'highpass'
+  nhp.frequency.value = 1200
+  nhp.Q.value = 0.4
+  const ng = ctx.createGain()
+  ng.gain.setValueAtTime(0.1 * vel, t)
+  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.012)
+  nsrc.connect(nhp)
+  nhp.connect(ng)
+  ng.connect(bus)
+  nsrc.start(t)
 }
 
 function synthClave(ctx, dest, t, gain = 0.85) {
@@ -143,8 +171,10 @@ export function useCountdownBeeps({ timeLeft, isCountingDown, muted }) {
     if (!ctx) return
     const dest = getDestination()
     if (!dest) return
-    ;[0, 0.16, 0.32].forEach((delay) => {
-      synthCowbell(ctx, dest, ctx.currentTime + delay, 0.9, 0.35)
+    const t0 = ctx.currentTime
+    const gap = 0.48
+    ;[0, 1, 2].forEach((i) => {
+      ringBellHit(ctx, dest, t0 + i * gap, 0.9 - i * 0.04)
     })
   }, [muted])
 

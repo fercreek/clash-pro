@@ -67,6 +67,7 @@ function computeBootState() {
       screen: SCREENS.DASHBOARD,
       competitors: [],
       roundTime: 40,
+      battleRoundCount: 4,
       matches: [],
       activeMatchId: null,
       competitionMode: COMPETITION_MODE.tournament,
@@ -86,6 +87,7 @@ function computeBootState() {
     screen: hasActiveMatches ? norm.screen : SCREENS.DASHBOARD,
     competitors: loaded.competitors ?? [],
     roundTime: loaded.roundTime,
+    battleRoundCount: loaded.battleRoundCount ?? 4,
     matches: loaded.matches,
     activeMatchId: norm.activeMatchId,
     competitionMode,
@@ -122,6 +124,7 @@ function AppShell() {
   })
   const [competitors, setCompetitors] = useState(boot.competitors)
   const [roundTime, setRoundTime] = useState(boot.roundTime)
+  const [battleRoundCount, setBattleRoundCount] = useState(boot.battleRoundCount)
   const [matches, setMatches] = useState(boot.matches)
   const [activeMatchId, setActiveMatchId] = useState(boot.activeMatchId)
   const [competitionMode, setCompetitionMode] = useState(boot.competitionMode)
@@ -255,8 +258,8 @@ function AppShell() {
   }, [user, screen])
 
   useEffect(() => {
-    saveState({ screen, competitors, roundTime, matches, activeMatchId, competitionMode })
-  }, [screen, competitors, roundTime, matches, activeMatchId, competitionMode])
+    saveState({ screen, competitors, roundTime, battleRoundCount, matches, activeMatchId, competitionMode })
+  }, [screen, competitors, roundTime, battleRoundCount, matches, activeMatchId, competitionMode])
 
   useEffect(() => {
     setNavImgBroken(false)
@@ -282,11 +285,7 @@ function AppShell() {
 
   useEffect(() => {
     if (!user) return
-    if (
-      screen === SCREENS.PRACTICE_SETUP
-      || screen === SCREENS.PRACTICE_LIVE
-      || screen === SCREENS.PRACTICE_HISTORY
-    ) {
+    if (screen === SCREENS.PRACTICE_LIVE || screen === SCREENS.PRACTICE_HISTORY) {
       setCompetitionMode(COMPETITION_MODE.practice)
     }
   }, [user, screen])
@@ -310,7 +309,7 @@ function AppShell() {
     })
   }, [user?.id, hasHistory, competitionMode, matches, competitors, roundTime])
 
-  const handleStartTournament = useCallback((finalCompetitors, selectedTime, repeatCounts = {}) => {
+  const handleStartTournament = useCallback((finalCompetitors, selectedTime, repeatCounts = {}, br) => {
     archiveCompletedIfNeeded()
     if (competitionMode === COMPETITION_MODE.practice) {
       const { matches: generated, stats } = generatePracticeRounds(finalCompetitors, 0, repeatCounts)
@@ -325,12 +324,14 @@ function AppShell() {
       goToPracticeLive()
       return
     }
+    const n = br == null ? battleRoundCount : Math.min(4, Math.max(1, Number(br) || 4))
+    setBattleRoundCount(n)
     const generated = generateRoundRobin(finalCompetitors)
     setCompetitors(finalCompetitors)
     setRoundTime(selectedTime)
     setMatches(generated)
     goTo(SCREENS.MATCHES)
-  }, [goTo, archiveCompletedIfNeeded, competitionMode, goToPracticeLive])
+  }, [goTo, archiveCompletedIfNeeded, competitionMode, goToPracticeLive, battleRoundCount])
 
   const goToMatchList = useCallback(() => {
     if (isTournament) {
@@ -619,9 +620,75 @@ function AppShell() {
         )}
 
         <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-zinc-700 bg-zinc-950/80 backdrop-blur-sm shrink-0">
-          <span className="text-base font-black tracking-tight text-white truncate min-w-0">
-            CLASH<span className="text-red-500">PRO</span>
-          </span>
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={goToDashboard}
+              className="text-base font-black tracking-tight text-white truncate shrink-0 hover:opacity-90 text-left"
+            >
+              CLASH<span className="text-red-500">PRO</span>
+            </button>
+            <nav
+              className="flex items-center gap-0 min-w-0 overflow-x-auto sm:gap-0.5 text-[10px] sm:text-xs font-semibold [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Secciones"
+            >
+              <button
+                type="button"
+                onClick={goToDashboard}
+                className={`shrink-0 px-1.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  screen === SCREENS.DASHBOARD
+                    ? 'text-white bg-zinc-800'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70'
+                }`}
+              >
+                Inicio
+              </button>
+              <button
+                type="button"
+                onClick={() => goToBlog()}
+                className={`shrink-0 px-1.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  screen === SCREENS.BLOG || screen === SCREENS.BLOG_POST
+                    ? 'text-white bg-zinc-800'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70'
+                }`}
+              >
+                Blog
+              </button>
+              <button
+                type="button"
+                onClick={goToGuia}
+                className={`shrink-0 px-1.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  screen === SCREENS.GUIA
+                    ? 'text-white bg-zinc-800'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70'
+                }`}
+              >
+                Guía
+              </button>
+              <button
+                type="button"
+                onClick={goToPatterns}
+                className={`shrink-0 px-1.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  screen === SCREENS.PATTERNS
+                    ? 'text-white bg-zinc-800'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70'
+                }`}
+              >
+                Patrones
+              </button>
+              <button
+                type="button"
+                onClick={goToPracticeHistory}
+                className={`shrink-0 px-1.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  screen === SCREENS.PRACTICE_HISTORY
+                    ? 'text-white bg-zinc-800'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70'
+                }`}
+              >
+                Historial
+              </button>
+            </nav>
+          </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {screen !== SCREENS.DASHBOARD && screen !== SCREENS.SETUP && (
               <span
@@ -716,6 +783,8 @@ function AppShell() {
               setCompetitors={setCompetitors}
               roundTime={roundTime}
               setRoundTime={setRoundTime}
+              battleRoundCount={battleRoundCount}
+              setBattleRoundCount={setBattleRoundCount}
               onStart={handleStartTournament}
               onOpenPromoMenu={() => setMenuOpen(true)}
             />
@@ -761,6 +830,7 @@ function AppShell() {
             <BattleScreen
               match={activeMatch}
               roundTime={roundTime}
+              roundCount={battleRoundCount}
               isTournament={isTournament}
               onBattleEnd={handleBattleEnd}
               onCancel={() => { setActiveMatchId(null); goToMatchList() }}

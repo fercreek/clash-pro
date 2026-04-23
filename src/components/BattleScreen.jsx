@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Play, Pause, Trophy, Minus, Volume2, VolumeX,
-  ChevronLeft, RotateCcw, SkipForward, Plus, Music2,
+  ChevronLeft, RotateCcw, SkipForward, Plus, Music2, Undo2,
 } from 'lucide-react'
 import {
   useCountdownBeeps,
@@ -9,15 +9,6 @@ import {
   saveSoundMuted,
 } from '../hooks/useCountdownBeeps'
 
-const PHASE = {
-  ROUND1_READY:   'round1_ready',
-  ROUND1_RUNNING: 'round1_running',
-  ROUND1_DONE:    'round1_done',
-  ROUND2_RUNNING: 'round2_running',
-  VOTING:         'voting',
-}
-
-// ── Círculo de cuenta regresiva ───────────────────────────────────────────────
 function TimerCircle({ seconds, total, paused, onClick }) {
   const pct      = total > 0 ? seconds / total : 0
   const isUrgent = seconds <= 10
@@ -64,6 +55,7 @@ function TimerCircle({ seconds, total, paused, onClick }) {
 export default function BattleScreen({
   match,
   roundTime,
+  roundCount = 4,
   isTournament = true,
   onBattleEnd,
   onCancel,
@@ -73,14 +65,20 @@ export default function BattleScreen({
   matchNumber,
   totalMatches,
 }) {
-  const [phase, setPhase]         = useState(PHASE.ROUND1_READY)
+  const totalRounds = Math.min(4, Math.max(1, Math.floor(Number(roundCount)) || 4))
+
+  const [status, setStatus] = useState('ready')
+  const [roundIndex, setRoundIndex] = useState(0)
+  const [betweenAfter, setBetweenAfter] = useState(null)
   const [timeLeft, setTimeLeft]   = useState(roundTime)
   const [paused, setPaused]       = useState(false)
   const [soundMuted, setSoundMuted] = useState(loadSoundMuted)
   const intervalRef = useRef(null)
   const onEndRef    = useRef(null)
+  const toNextRef   = useRef(null)
+  const beginRoundRef = useRef(null)
 
-  const isRunning      = phase === PHASE.ROUND1_RUNNING || phase === PHASE.ROUND2_RUNNING
+  const isRunning      = status === 'running'
   const isCountingDown = isRunning && !paused
 
   const { unlock, playBell, playRoundEnd, playParticipantChange } = useCountdownBeeps({ timeLeft, isCountingDown, muted: soundMuted })
@@ -89,7 +87,6 @@ export default function BattleScreen({
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
   }, [])
 
-  // Retoma desde timeLeft actual
   const runInterval = useCallback((onEnd) => {
     clearTimer()
     onEndRef.current = onEnd
@@ -106,7 +103,6 @@ export default function BattleScreen({
     }, 1000)
   }, [clearTimer])
 
-  // Reinicia y corre desde roundTime
   const startCountdown = useCallback((onEnd) => {
     setTimeLeft(roundTime)
     setPaused(false)
@@ -118,12 +114,10 @@ export default function BattleScreen({
     else        { clearTimer(); setPaused(true) }
   }, [paused, clearTimer, runInterval])
 
-  // ±N segundos al tiempo restante
   const addTime = useCallback((secs) => {
     setTimeLeft((prev) => Math.max(1, Math.min(prev + secs, roundTime * 2)))
   }, [roundTime])
 
-  // Reiniciar la fase actual
   const handleRestartPhase = useCallback(() => {
     clearTimer()
     setPaused(false)
@@ -131,60 +125,147 @@ export default function BattleScreen({
     setTimeout(() => runInterval(onEndRef.current), 0)
   }, [clearTimer, roundTime, runInterval])
 
-  // Terminar la fase actual de forma manual
   const handleSkipPhase = useCallback(() => {
     clearTimer()
     setPaused(false)
     onEndRef.current?.()
   }, [clearTimer])
 
-  useEffect(() => () => clearTimer(), [clearTimer])
+  const clearToNext = useCallback(() => {
+    if (toNextRef.current) {
+      clearTimeout(toNextRef.current)
+      toNextRef.current = null
+    }
+  }, [])
+
+  const beginRound = useCallback(
+    (idx) => {
+      if (idx > 0) {
+        playParticipantChange()
+        setTimeout(() => playBell(), 300)
+      }
+      setRoundIndex(idx)
+      setStatus('running')
+      setBetweenAfter(null)
+      setPaused(false)
+      startCountdown(() => {
+        playRoundEnd()
+        if (idx < totalRounds - 1) {
+          setStatus('between')
+          setBetweenAfter(idx)
+          clearToNext()
+          toNextRef.current = setTimeout(() => {
+            toNextRef.current = null
+            beginRoundRef.current?.(idx + 1)
+          }, 750)
+        } else if (isTournament) {
+          setStatus('voting')
+        } else {
+          onBattleEnd(match.id, null)
+        }
+      })
+    },
+    [
+      playParticipantChange,
+      playBell,
+      startCountdown,
+      playRoundEnd,
+      totalRounds,
+      isTournament,
+      onBattleEnd,
+      match.id,
+      clearToNext,
+    ]
+  )
+
+  beginRoundRef.current = beginRound
+
+  const goBackToRound1 = useCallback(() => {
+    clearTimer()
+    clearToNext()
+    setPaused(false)
+    setStatus('ready')
+    setRoundIndex(0)
+    setBetweenAfter(null)
+    setTimeLeft(roundTime)
+  }, [clearTimer, clearToNext, roundTime])
+
+  const replayLastFromVoting = useCallback(() => {
+    if (!isTournament) return
+    const last = totalRounds - 1
+    setStatus('running')
+    setRoundIndex(last)
+    setBetweenAfter(null)
+    setPaused(false)
+    setTimeLeft(roundTime)
+    if (last > 0) {
+      playParticipantChange()
+      setTimeout(() => playBell(), 200)
+    } else {
+      setTimeout(() => playBell(), 200)
+    }
+    startCountdown(() => {
+      playRoundEnd()
+      setStatus('voting')
+    })
+  }, [isTournament, totalRounds, roundTime, playParticipantChange, playBell, startCountdown, playRoundEnd])
+
+  useEffect(() => () => {
+    clearTimer()
+    if (toNextRef.current) clearTimeout(toNextRef.current)
+  }, [clearTimer])
 
   const toggleMute = useCallback(() => {
     setSoundMuted((m) => { const next = !m; saveSoundMuted(next); return next })
   }, [])
 
   const handlePlay = useCallback(() => {
+    if (status !== 'ready') return
     unlock()
-    onRoundStart?.()   // auto-avanza canción en la cola
-    if (phase === PHASE.ROUND1_READY) {
-      playBell()  // inicio ronda 1
-      setPhase(PHASE.ROUND1_RUNNING)
-      startCountdown(() => {
-        playRoundEnd()  // fin ronda 1
-        setPhase(PHASE.ROUND1_DONE)
-      })
-    } else if (phase === PHASE.ROUND1_DONE) {
-      playParticipantChange()  // cambio de participante
-      setPhase(PHASE.ROUND2_RUNNING)
-      setTimeout(() => playBell(), 300)  // inicio ronda 2 con pequeño delay
-      startCountdown(() => {
-        playRoundEnd()  // fin ronda 2
-        if (isTournament) setPhase(PHASE.VOTING)
-        else onBattleEnd(match.id, null)
-      })
-    }
-  }, [phase, startCountdown, unlock, playBell, playRoundEnd, playParticipantChange, onRoundStart, isTournament, onBattleEnd, match.id])
+    onRoundStart?.()
+    playBell()
+    beginRound(0)
+  }, [status, beginRound, unlock, playBell, onRoundStart])
 
   const handleVote = useCallback((result) => onBattleEnd(match.id, result), [match.id, onBattleEnd])
-  const handleBack = useCallback(() => { clearTimer(); onCancel() }, [clearTimer, onCancel])
+  const handleBack = useCallback(() => {
+    clearTimer()
+    clearToNext()
+    onCancel()
+  }, [clearTimer, clearToNext, onCancel])
 
-  const phaseLabel = {
-    [PHASE.ROUND1_READY]:   `Ronda 1 · ${match.playerA}`,
-    [PHASE.ROUND1_RUNNING]: paused ? `⏸ Pausado · ${match.playerA}` : `Ronda 1 · ${match.playerA}`,
-    [PHASE.ROUND1_DONE]:    `✓ R1 terminada — prepara ${match.playerB}`,
-    [PHASE.ROUND2_RUNNING]: paused ? `⏸ Pausado · ${match.playerB}` : `Ronda 2 · ${match.playerB}`,
-    [PHASE.VOTING]:         '¿Quién ganó?',
-  }[phase]
+  const speakerName = (ri) => (ri % 2 === 0 ? match.playerA : match.playerB)
+  const nextRoundOneBased = betweenAfter == null ? null : betweenAfter + 2
+  const phaseLabel = (() => {
+    if (status === 'voting') return '¿Quién ganó?'
+    if (status === 'ready') return `Ronda 1 de ${totalRounds} · ${match.playerA}`
+    if (status === 'between' && nextRoundOneBased != null) {
+      return `Cambio — ronda ${nextRoundOneBased} inicia ahora…`
+    }
+    if (status === 'running') {
+      const s = `Ronda ${roundIndex + 1} de ${totalRounds} · ${speakerName(roundIndex)}`
+      return paused ? `⏸ Pausado · ${speakerName(roundIndex)}` : s
+    }
+    return ''
+  })()
 
-  const showTimer  = phase !== PHASE.VOTING
-  const showPlay   = phase === PHASE.ROUND1_READY || phase === PHASE.ROUND1_DONE
+  const showTimer  = status !== 'voting'
+  const showPlay   = status === 'ready'
   const showSongBar = nowPlaying?.title
+  const showVoting = status === 'voting' && isTournament
 
+  const aIsCurrent = status === 'ready' || (status === 'running' && roundIndex % 2 === 0)
+  const bIsCurrent = status === 'running' && roundIndex % 2 === 1
+  const aListoBetween = status === 'between' && betweenAfter % 2 === 0
+  const bListoBetween = status === 'between' && betweenAfter % 2 === 1
+  const aIsNext     = status === 'between' && (betweenAfter + 1) % 2 === 0
+  const bIsNext     = status === 'between' && (betweenAfter + 1) % 2 === 1
+  const turn1Active = aIsCurrent
+  const turn1Done   = aListoBetween || bIsCurrent || showVoting || aIsNext || (status === 'running' && bIsCurrent)
+  const turn2Current = bIsCurrent
   return (
     <div className={`flex flex-col items-center min-h-[calc(100vh-80px)] p-6 gap-5 relative ${showSongBar ? 'pb-20' : ''}`}>
 
-      {/* Fila superior: regresar + mute */}
       <div className="w-full flex items-center justify-between">
         <button
           type="button"
@@ -204,7 +285,6 @@ export default function BattleScreen({
         </button>
       </div>
 
-      {/* Nombres */}
       <div className="text-center space-y-1 mt-2">
         {matchNumber != null && totalMatches != null && (
           <p className="text-zinc-500 text-xs font-semibold">
@@ -216,10 +296,62 @@ export default function BattleScreen({
           <span className="text-red-500 text-xl">VS</span>{' '}
           {match.playerB}
         </h2>
-        <p className="text-zinc-400 text-sm">{phaseLabel}</p>
+        <div className="grid grid-cols-2 gap-2 w-full max-w-sm mx-auto text-left">
+          <div
+            className={`rounded-xl border px-3 py-2 transition-colors ${
+              aIsCurrent
+                ? 'border-red-500/70 bg-red-500/10 ring-1 ring-red-500/40'
+                : aIsNext
+                  ? 'border-red-500/40 bg-red-500/5 ring-1 ring-red-500/30'
+                  : turn1Done
+                    ? 'border-zinc-700 bg-zinc-900/80 opacity-80'
+                    : 'border-zinc-800 bg-zinc-900/50'
+            }`}
+          >
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-400/90">1.º en salir</p>
+            <p className="text-sm font-bold text-white leading-tight truncate" title={match.playerA}>
+              {match.playerA}
+            </p>
+            {turn1Active && <p className="text-[10px] text-red-300/80 font-semibold mt-0.5">Turno actual</p>}
+            {aIsNext && <p className="text-[10px] text-red-300/80 font-semibold mt-0.5">Siguiente</p>}
+            {!aIsNext && (aListoBetween || (status === 'running' && bIsCurrent)) && (
+              <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">Listo</p>
+            )}
+            {showVoting && <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">Listo</p>}
+          </div>
+          <div
+            className={`rounded-xl border px-3 py-2 transition-colors ${
+              showVoting
+                ? 'border-zinc-700 bg-zinc-900/80 opacity-90'
+                : bIsNext
+                  ? 'border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/40'
+                  : turn2Current
+                    ? 'border-amber-500/70 bg-amber-500/10 ring-1 ring-amber-500/40'
+                    : turn1Active || aIsNext
+                      ? 'border-amber-500/30 bg-amber-500/5'
+                      : 'border-zinc-800 bg-zinc-900/50'
+            }`}
+          >
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/90">2.º en salir</p>
+            <p className="text-sm font-bold text-white leading-tight truncate" title={match.playerB}>
+              {match.playerB}
+            </p>
+            {turn2Current && (
+              <p className="text-[10px] text-amber-200/80 font-semibold mt-0.5">Turno actual</p>
+            )}
+            {bIsNext && <p className="text-[10px] text-amber-300/80 font-semibold mt-0.5">Siguiente</p>}
+            {bListoBetween && <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">Listo</p>}
+            {(status === 'ready' || (status === 'running' && roundIndex % 2 === 0)) && (
+              <p className="text-[10px] text-zinc-500 font-medium mt-0.5">Después</p>
+            )}
+            {showVoting && (
+              <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">Listo</p>
+            )}
+          </div>
+        </div>
+        <p className="text-zinc-400 text-sm pt-0.5">{phaseLabel}</p>
       </div>
 
-      {/* Círculo — tap para pausar/reanudar */}
       {showTimer && (
         <TimerCircle
           seconds={timeLeft}
@@ -229,10 +361,30 @@ export default function BattleScreen({
         />
       )}
 
-      {/* Controles manuales (solo cuando corre o pausado) */}
+      {status === 'between' && (
+        <button
+          type="button"
+          onClick={goBackToRound1}
+          className="flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 transition-colors"
+        >
+          <Undo2 size={16} />
+          Volver a ronda 1
+        </button>
+      )}
+
       {isRunning && (
-        <div className="flex items-center gap-2">
-          {/* Reiniciar fase */}
+        <div className="flex flex-wrap items-center justify-center gap-2 max-w-md">
+          {roundIndex > 0 && (
+            <button
+              type="button"
+              onClick={goBackToRound1}
+              title="Reiniciar batalla desde ronda 1"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-500 text-xs font-semibold transition-colors"
+            >
+              <Undo2 size={14} />
+              A ronda 1
+            </button>
+          )}
           <button
             type="button"
             onClick={handleRestartPhase}
@@ -242,7 +394,20 @@ export default function BattleScreen({
             <RotateCcw size={14} /> Reiniciar
           </button>
 
-          {/* -5 segundos */}
+          <button
+            type="button"
+            onClick={handlePauseResume}
+            title={paused ? 'Reanudar' : 'Pausar'}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              paused
+                ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-600/80'
+            }`}
+          >
+            {paused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+            {paused ? 'Reanudar' : 'Pausar'}
+          </button>
+
           <button
             type="button"
             onClick={() => addTime(-5)}
@@ -252,7 +417,6 @@ export default function BattleScreen({
             <Minus size={13} />5s
           </button>
 
-          {/* +5 segundos */}
           <button
             type="button"
             onClick={() => addTime(5)}
@@ -262,7 +426,6 @@ export default function BattleScreen({
             <Plus size={13} />5s
           </button>
 
-          {/* Terminar ronda */}
           <button
             type="button"
             onClick={handleSkipPhase}
@@ -274,7 +437,6 @@ export default function BattleScreen({
         </div>
       )}
 
-      {/* Botón principal: INICIAR */}
       {showPlay && (
         <button
           type="button"
@@ -282,11 +444,10 @@ export default function BattleScreen({
           className="flex items-center gap-3 bg-red-500 hover:bg-red-600 active:scale-95 px-10 py-4 rounded-2xl font-black text-xl transition-all"
         >
           <Play size={24} fill="white" />
-          {phase === PHASE.ROUND1_READY ? 'INICIAR RONDA 1' : 'INICIAR RONDA 2'}
+          {totalRounds > 1 ? 'INICIAR RONDA 1' : 'INICIAR BATALLA'}
         </button>
       )}
 
-      {/* Bouncing dots cuando corre */}
       {isRunning && !paused && (
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
@@ -299,12 +460,29 @@ export default function BattleScreen({
         </div>
       )}
 
-      {/* Votación */}
-      {phase === PHASE.VOTING && isTournament && (
+      {status === 'voting' && isTournament && (
         <div className="w-full max-w-sm space-y-3">
-          <p className="text-center text-zinc-400 text-sm mb-4">
+          <p className="text-center text-zinc-400 text-sm mb-1">
             Selecciona el resultado de la batalla
           </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-4 text-[11px]">
+            <button
+              type="button"
+              onClick={goBackToRound1}
+              className="px-2.5 py-1.5 rounded-lg border border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-500 font-semibold"
+            >
+              Ajustar: desde ronda 1
+            </button>
+            {totalRounds > 0 && (
+              <button
+                type="button"
+                onClick={replayLastFromVoting}
+                className="px-2.5 py-1.5 rounded-lg border border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-500 font-semibold"
+              >
+                {totalRounds > 1 ? 'Ajustar: repetir última ronda' : 'Ajustar: repetir ronda'}
+              </button>
+            )}
+          </div>
 
           <button
             type="button"
@@ -350,7 +528,6 @@ export default function BattleScreen({
         </div>
       )}
 
-      {/* ── Mini barra de canción (bottom sticky) ─────────────────────────── */}
       {showSongBar && (
         <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur border-t border-zinc-800 px-4 py-2.5 flex items-center gap-3 z-20">
           <Music2 size={14} className="text-green-400 shrink-0" />

@@ -9,7 +9,16 @@ import RosterPicker from './RosterPicker'
 import BulkNameInput from './BulkNameInput'
 import { AV_BG } from '../utils/avatarColors'
 
-export default function SetupScreen({ competitors, setCompetitors, roundTime, setRoundTime, onStart, onOpenPromoMenu }) {
+export default function SetupScreen({
+  competitors,
+  setCompetitors,
+  roundTime,
+  setRoundTime,
+  battleRoundCount,
+  setBattleRoundCount,
+  onStart,
+  onOpenPromoMenu,
+}) {
   const { isFree, maxCompetitors } = usePlan()
   const { mode, setMode } = useMode()
   const canTournament = canSelectTournamentMode(isFree)
@@ -185,6 +194,32 @@ export default function SetupScreen({ competitors, setCompetitors, roundTime, se
           </div>
         </section>
 
+        {isTournament && (
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 mb-1">
+              <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">Rondas por batalla</p>
+              <div className="flex-1 h-px bg-zinc-900" />
+            </div>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setBattleRoundCount(n)}
+                  className={`flex-1 py-3 rounded-xl font-black text-lg transition-all ${
+                    battleRoundCount === n
+                      ? 'bg-amber-500/90 text-zinc-950'
+                      : 'bg-zinc-900/60 border border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <p className="text-zinc-600 text-[11px] px-0.5">Cada competidor sale por turno (1.º / 2.º) hasta completar las rondas.</p>
+          </section>
+        )}
+
         {/* Competitors — mode-specific input */}
         <section className="flex flex-col gap-2">
           <div className="flex items-center gap-3 mb-1">
@@ -298,7 +333,9 @@ export default function SetupScreen({ competitors, setCompetitors, roundTime, se
         {/* CTA */}
         <button
           type="button"
-          onClick={() => onStart(competitors, roundTime, repeatCounts)}
+          onClick={() =>
+            onStart(competitors, roundTime, repeatCounts, isTournament ? battleRoundCount : undefined)
+          }
           disabled={!canStart}
           className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-black text-base tracking-tight transition-colors"
         >
