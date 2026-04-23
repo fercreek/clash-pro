@@ -9,14 +9,12 @@ import RosterPicker from './RosterPicker'
 import BulkNameInput from './BulkNameInput'
 import { AV_BG } from '../utils/avatarColors'
 
-export default function SetupScreen({ initialCompetitors, initialRoundTime, onStart, onOpenPromoMenu }) {
+export default function SetupScreen({ competitors, setCompetitors, roundTime, setRoundTime, onStart, onOpenPromoMenu }) {
   const { isFree, maxCompetitors } = usePlan()
   const { mode, setMode } = useMode()
   const canTournament = canSelectTournamentMode(isFree)
 
-  const [competitors, setCompetitors] = useState(initialCompetitors)
   const [inputValue, setInputValue] = useState('')
-  const [roundTime, setRoundTime] = useState(initialRoundTime)
   const [plansOpen, setPlansOpen] = useState(false)
 
   const isTournament = mode === COMPETITION_MODE.tournament

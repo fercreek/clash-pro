@@ -1,10 +1,14 @@
-// Supabase project ref from VITE_SUPABASE_URL
-const PROJECT_REF = 'gxweakeahiofjxocoavo'
-const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`
-const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`
+import { expect } from '@playwright/test'
+
+function getAuthStorageKey() {
+  const fromEnv = typeof process !== 'undefined' && process.env.VITE_SUPABASE_URL
+  const u = (fromEnv && fromEnv.trim()) || 'https://gxweakeahiofjxocoavo.supabase.co'
+  const host = new URL(u.startsWith('http') ? u : `https://${u}`).hostname
+  return `sb-${host.split('.')[0]}-auth-token`
+}
 
 const MOCK_USER = {
-  id: 'test-user-id-00000000',
+  id: 'a0000000-0000-4000-8000-000000000001',
   email: 'fercreek@gmail.com',
   role: 'authenticated',
   aud: 'authenticated',
@@ -48,7 +52,9 @@ const MOCK_SESSION = {
  * Call in test beforeEach or at start of each test.
  */
 export async function loginAs(page, { user = MOCK_USER, profile = MOCK_PROFILE } = {}) {
-  // Intercept Supabase auth + REST calls before navigation
+  const STORAGE_KEY = getAuthStorageKey()
+  const sessionPayload = { ...MOCK_SESSION, user }
+
   await page.route(/\/auth\/v1\/user/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
   )
@@ -57,24 +63,26 @@ export async function loginAs(page, { user = MOCK_USER, profile = MOCK_PROFILE }
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ ...MOCK_SESSION, user }),
+      body: JSON.stringify(sessionPayload),
     })
   )
 
-  await page.route(/\/rest\/v1\/profiles/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([profile]),
-    })
-  )
+  await page.route('**/rest/v1/profiles**', (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    const u = route.request().url()
+    if (u.includes(encodeURIComponent(user.id)) || u.includes(user.id)) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(profile) })
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  })
 
-  // Navigate first (to get origin), then inject localStorage session
-  await page.goto('/', { waitUntil: 'commit' })
-  await page.evaluate(
-    ([key, session]) => localStorage.setItem(key, JSON.stringify(session)),
-    [STORAGE_KEY, MOCK_SESSION]
+  const sessionJson = JSON.stringify(sessionPayload)
+  await page.addInitScript(
+    ([k, j]) => {
+      localStorage.setItem(k, j)
+    },
+    [STORAGE_KEY, sessionJson]
   )
-  // Reload so the Supabase client picks up the stored session
-  await page.reload()
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText(/Hola/)).toBeVisible({ timeout: 20000 })
 }

@@ -1,4 +1,4 @@
-import { generateRoundRobin } from './roundRobin'
+import { generateRoundRobin } from './roundRobin.js'
 
 const GHOST = '__REPEAT__'
 
@@ -86,8 +86,6 @@ export function generatePracticeRounds(names, iterationIndex = 0, repeatCounts =
           completed: false,
           result: null,
         })
-        appearances[partner]++
-        appearances[repeater]++
       } else {
         out.push({
           id: m.id,
@@ -99,8 +97,6 @@ export function generatePracticeRounds(names, iterationIndex = 0, repeatCounts =
           completed: false,
           result: null,
         })
-        appearances[m.playerA]++
-        appearances[m.playerB]++
       }
     }
     prevRepeater = repeaterThisRound
@@ -124,7 +120,7 @@ function groupByRound(matches) {
   return [...map.values()]
 }
 
-function buildStats(matches) {
+export function buildStats(matches) {
   const appearances = {}
   const repeats = {}
   const pairMap = new Map()
@@ -150,6 +146,56 @@ function buildStats(matches) {
 /**
  * Fusiona stats acumulando apariciones y pareos entre iteraciones.
  */
+export function countCompletedDancesPerPerson(matches) {
+  const o = {}
+  for (const m of matches) {
+    if (m.isBye || !m.completed) continue
+    o[m.playerA] = (o[m.playerA] ?? 0) + 1
+    o[m.playerB] = (o[m.playerB] ?? 0) + 1
+  }
+  return o
+}
+
+export function aggregateSessionDanceCounts(practiceIterations, currentMatches) {
+  const out = {}
+  const merge = (obj) => {
+    for (const [k, v] of Object.entries(obj)) {
+      out[k] = (out[k] ?? 0) + v
+    }
+  }
+  if (!practiceIterations.length) {
+    merge(countCompletedDancesPerPerson(currentMatches ?? []))
+    return out
+  }
+  for (let i = 0; i < practiceIterations.length - 1; i++) {
+    merge(countCompletedDancesPerPerson(practiceIterations[i].matches ?? []))
+  }
+  merge(countCompletedDancesPerPerson(currentMatches ?? []))
+  return out
+}
+
+export function sessionCompletedNonByePairings(practiceIterations, currentMatches) {
+  const out = []
+  if (!practiceIterations.length) {
+    for (const m of currentMatches ?? []) {
+      if (m.isBye || !m.completed) continue
+      out.push(m)
+    }
+    return out
+  }
+  for (let i = 0; i < practiceIterations.length - 1; i++) {
+    for (const m of practiceIterations[i].matches ?? []) {
+      if (m.isBye || !m.completed) continue
+      out.push(m)
+    }
+  }
+  for (const m of currentMatches ?? []) {
+    if (m.isBye || !m.completed) continue
+    out.push(m)
+  }
+  return out
+}
+
 export function mergeStats(a, b) {
   const appearances = { ...(a?.appearances ?? {}) }
   for (const [name, n] of Object.entries(b?.appearances ?? {})) {

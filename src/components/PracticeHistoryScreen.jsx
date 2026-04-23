@@ -1,7 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, History, Users, Repeat, Heart } from 'lucide-react'
 import { usePracticeSession } from '../hooks/usePracticeSession'
 import { AV_BG } from '../utils/avatarColors'
+
+function startOfLocalDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+function dayGroupKeyAndLabel(iso) {
+  if (!iso) {
+    return { key: 'unknown', label: 'Sin fecha' }
+  }
+  const t = new Date(iso)
+  if (Number.isNaN(t.getTime())) {
+    return { key: 'unknown', label: 'Sin fecha' }
+  }
+  const s = startOfLocalDay(t)
+  const key = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`
+  const now = new Date()
+  const today = startOfLocalDay(now)
+  const diff = Math.floor((today.getTime() - s.getTime()) / 864e5)
+  if (diff === 0) return { key, label: 'Hoy' }
+  if (diff === 1) return { key, label: 'Ayer' }
+  if (diff === 2) return { key, label: 'Anteayer' }
+  return { key, label: t.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) }
+}
+
+function sessionSortTime(s) {
+  const t = s.ended_at || s.created_at
+  if (!t) return 0
+  const d = new Date(t)
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime()
+}
 
 function timeAgo(iso) {
   if (!iso) return ''
@@ -41,6 +71,22 @@ export default function PracticeHistoryScreen({ onBack }) {
       .finally(() => setLoading(false))
   }, [list])
 
+  const sessionsByDay = useMemo(() => {
+    const sorted = [...sessions].sort((a, b) => sessionSortTime(b) - sessionSortTime(a))
+    const out = []
+    for (const s of sorted) {
+      const t = s.ended_at || s.created_at
+      const { key, label } = dayGroupKeyAndLabel(t)
+      const last = out[out.length - 1]
+      if (last && last.key === key) {
+        last.items.push(s)
+      } else {
+        out.push({ key, label, items: [s] })
+      }
+    }
+    return out
+  }, [sessions])
+
   if (selected) return <SessionDetail session={selected} onBack={() => setSelected(null)} />
 
   return (
@@ -69,44 +115,53 @@ export default function PracticeHistoryScreen({ onBack }) {
           </div>
         )}
 
-        <ul className="flex flex-col gap-2">
-          {sessions.map((s) => {
-            const comp = Array.isArray(s.competitors) ? s.competitors : []
-            const iters = Array.isArray(s.iterations) ? s.iterations.length : 0
-            const topNames = Object.entries(s.stats?.appearances ?? {})
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 3)
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelected(s)}
-                  className="w-full bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 rounded-2xl px-4 py-3 flex flex-col gap-2 text-left transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                      {timeAgo(s.created_at)}
-                    </span>
-                    <div className="flex items-center gap-3 text-[11px] text-zinc-400">
-                      <span className="flex items-center gap-1"><Users size={11} />{comp.length}</span>
-                      <span className="flex items-center gap-1"><Repeat size={11} />{iters}</span>
-                    </div>
-                  </div>
-                  {topNames.length > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      {topNames.map(([name], i) => (
-                        <div key={name} className="flex items-center gap-1.5">
-                          <Avatar name={name} idx={i} />
-                          <span className="text-white text-xs font-medium">{name}</span>
+        <div className="flex flex-col gap-5">
+          {sessionsByDay.map((group) => (
+            <section key={group.key} className="flex flex-col gap-2">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] px-0.5 capitalize">
+                {group.label}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {group.items.map((s) => {
+                  const comp = Array.isArray(s.competitors) ? s.competitors : []
+                  const iters = Array.isArray(s.iterations) ? s.iterations.length : 0
+                  const topNames = Object.entries(s.stats?.appearances ?? {})
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                  return (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(s)}
+                        className="w-full bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 rounded-2xl px-4 py-3 flex flex-col gap-2 text-left transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                            {timeAgo(s.ended_at || s.created_at)}
+                          </span>
+                          <div className="flex items-center gap-3 text-[11px] text-zinc-400">
+                            <span className="flex items-center gap-1"><Users size={11} />{comp.length}</span>
+                            <span className="flex items-center gap-1"><Repeat size={11} />{iters}</span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+                        {topNames.length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            {topNames.map(([name], i) => (
+                              <div key={name} className="flex items-center gap-1.5">
+                                <Avatar name={name} idx={i} />
+                                <span className="text-white text-xs font-medium">{name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -132,7 +187,7 @@ function SessionDetail({ session, onBack }) {
           <div>
             <p className="text-[10px] font-black tracking-[0.25em] uppercase text-zinc-500">Sesión</p>
             <h1 className="text-[22px] font-black tracking-tight text-white leading-tight">
-              {timeAgo(session.created_at)}
+              {timeAgo(session.ended_at || session.created_at)}
             </h1>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import SetupScreen from './components/SetupScreen'
 import MatchesScreen from './components/MatchesScreen'
 import BattleScreen from './components/BattleScreen'
@@ -12,9 +12,21 @@ import BlogPostScreen from './components/BlogPostScreen'
 import GuiaScreen from './components/GuiaScreen'
 import PatternsScreen from './components/PatternsScreen'
 import PracticeHistoryScreen from './components/PracticeHistoryScreen'
+import PracticeRosterRegenerateModal from './components/PracticeRosterRegenerateModal'
 import DashboardScreen from './components/DashboardScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
-import { generatePracticeRounds, mergeStats } from './utils/practiceRounds'
+import {
+  aggregateSessionDanceCounts,
+  buildStats,
+  generatePracticeRounds,
+  mergeStats,
+  sessionCompletedNonByePairings,
+} from './utils/practiceRounds'
+import {
+  recomputeAggregatedStatsFromIterations,
+  remapPracticeState,
+  validateEqualLengthRemap,
+} from './utils/remapParticipantNames.js'
 import { saveTournamentArchive } from './lib/tournamentArchives'
 import { useRoster } from './hooks/useRoster'
 import { usePracticeSession } from './hooks/usePracticeSession'
@@ -120,8 +132,25 @@ function AppShell() {
   // DB repeat_count snapshot at session start — combined with in-session repeats
   // for fair repeater distribution across iterations.
   const [practiceInitialRepeatCounts, setPracticeInitialRepeatCounts] = useState({})
+  const [practiceRegenerateDraft, setPracticeRegenerateDraft] = useState(null)
 
   const isTournament = competitionMode === COMPETITION_MODE.tournament
+
+  const sessionDanceCounts = useMemo(
+    () =>
+      competitionMode === COMPETITION_MODE.practice
+        ? aggregateSessionDanceCounts(practiceIterations, matches)
+        : null,
+    [competitionMode, practiceIterations, matches]
+  )
+
+  const sessionCompletedPairings = useMemo(
+    () =>
+      competitionMode === COMPETITION_MODE.practice
+        ? sessionCompletedNonByePairings(practiceIterations, matches)
+        : [],
+    [competitionMode, practiceIterations, matches]
+  )
 
   const { bumpFrequency, bumpRepeatCount } = useRoster()
   const { save: savePracticeSession } = usePracticeSession()
@@ -134,7 +163,10 @@ function AppShell() {
   useEffect(() => {
     const handlePop = () => {
       setScreen((cur) => {
-        if (cur === SCREENS.BATTLE) { setActiveMatchId(null); return SCREENS.MATCHES }
+        if (cur === SCREENS.BATTLE) {
+          setActiveMatchId(null)
+          return isTournament ? SCREENS.MATCHES : SCREENS.PRACTICE_LIVE
+        }
         if (cur === SCREENS.LEADERBOARD) return SCREENS.MATCHES
         if (cur === SCREENS.MATCHES) return SCREENS.SETUP
         if (cur === SCREENS.SETUP) return SCREENS.DASHBOARD
@@ -147,7 +179,7 @@ function AppShell() {
     }
     window.addEventListener('popstate', handlePop)
     return () => window.removeEventListener('popstate', handlePop)
-  }, [])
+  }, [isTournament])
 
   const goToBlog = useCallback((filter = null) => {
     window.history.pushState({ screen: SCREENS.BLOG }, '', '/blog')
@@ -210,6 +242,7 @@ function AppShell() {
 
   useEffect(() => {
     if (!user) return
+    if (screen !== SCREENS.DASHBOARD) return
     supabase
       .from('competitors')
       .select('id, name, photo_url, is_active')
@@ -219,7 +252,7 @@ function AppShell() {
           setCompetitors(data.filter((c) => c.is_active).map((c) => c.name))
         }
       })
-  }, [user])
+  }, [user, screen])
 
   useEffect(() => {
     saveState({ screen, competitors, roundTime, matches, activeMatchId, competitionMode })
@@ -246,6 +279,17 @@ function AppShell() {
       setCompetitionMode(COMPETITION_MODE.practice)
     }
   }, [profile, isFree, competitionMode])
+
+  useEffect(() => {
+    if (!user) return
+    if (
+      screen === SCREENS.PRACTICE_SETUP
+      || screen === SCREENS.PRACTICE_LIVE
+      || screen === SCREENS.PRACTICE_HISTORY
+    ) {
+      setCompetitionMode(COMPETITION_MODE.practice)
+    }
+  }, [user, screen])
 
   useEffect(() => {
     if (screen === SCREENS.LEADERBOARD && !showLeaderboardRoute(isTournament)) {
@@ -288,6 +332,14 @@ function AppShell() {
     goTo(SCREENS.MATCHES)
   }, [goTo, archiveCompletedIfNeeded, competitionMode, goToPracticeLive])
 
+  const goToMatchList = useCallback(() => {
+    if (isTournament) {
+      goTo(SCREENS.MATCHES)
+    } else {
+      goToPracticeLive()
+    }
+  }, [isTournament, goTo, goToPracticeLive])
+
   const handleStartBattle = useCallback((matchId) => {
     setActiveMatchId(matchId)
     goTo(SCREENS.BATTLE)
@@ -300,8 +352,8 @@ function AppShell() {
       )
     )
     setActiveMatchId(null)
-    goTo(SCREENS.MATCHES)
-  }, [goTo])
+    goToMatchList()
+  }, [goToMatchList])
 
   const handleQuickClose = useCallback((matchId, result) => {
     setMatches((prev) =>
@@ -310,6 +362,49 @@ function AppShell() {
       )
     )
   }, [])
+
+  const practiceIterationsRef = useRef(practiceIterations)
+  practiceIterationsRef.current = practiceIterations
+
+  const handleUpdateMatchNames = useCallback(
+    (matchId, playerA, playerB) => {
+      const a1 = String(playerA).trim()
+      const b1 = String(playerB).trim()
+      if (!a1 || !b1) return
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === matchId
+            ? { ...m, playerA: a1, playerB: b1, isRepeat: false, repeaterName: null }
+            : m
+        )
+      )
+      setCompetitors((prev) => {
+        const have = new Set(prev.map((n) => n.toLowerCase()))
+        const out = [...prev]
+        for (const n of [a1, b1]) {
+          if (!have.has(n.toLowerCase())) {
+            have.add(n.toLowerCase())
+            out.push(n)
+          }
+        }
+        return out
+      })
+      if (competitionMode !== COMPETITION_MODE.practice) return
+      const p = practiceIterationsRef.current
+      if (!p.length) return
+      const i = p.length - 1
+      const newLast = (p[i].matches ?? []).map((m) =>
+        m.id === matchId
+          ? { ...m, playerA: a1, playerB: b1, isRepeat: false, repeaterName: null }
+          : m
+      )
+      const it = { ...p[i], matches: newLast, stats: buildStats(newLast) }
+      const nextIters = [...p.slice(0, i), it]
+      setPracticeIterations(nextIters)
+      setPracticeStats(recomputeAggregatedStatsFromIterations(nextIters))
+    },
+    [competitionMode]
+  )
 
   const handleViewLeaderboard = useCallback(() => {
     if (!showLeaderboardRoute(isTournament)) return
@@ -354,7 +449,6 @@ function AppShell() {
 
   const handleNextPracticeIteration = useCallback(() => {
     const nextIdx = practiceIterations.length
-    // Combine DB repeat history (initial snapshot) with who's already repeated this session
     const combinedRepeatCounts = { ...practiceInitialRepeatCounts }
     for (const [name, n] of Object.entries(practiceStats.repeats ?? {})) {
       combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
@@ -362,15 +456,83 @@ function AppShell() {
     const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx, combinedRepeatCounts)
     setMatches(generated)
     setActiveMatchId(null)
-    setPracticeIterations((prev) => [...prev, { matches: generated, stats }])
+    setPracticeIterations((prev) => {
+      if (!prev.length) {
+        return [{ matches: generated, stats }]
+      }
+      const withSynced = [
+        ...prev.slice(0, -1),
+        { ...prev[prev.length - 1], matches, stats: buildStats(matches) },
+      ]
+      return [...withSynced, { matches: generated, stats }]
+    })
     setPracticeStats((prev) => mergeStats(prev, stats))
     setCurrentPracticeRound(1)
     goToPracticeLive()
-  }, [competitors, practiceIterations.length, practiceInitialRepeatCounts, practiceStats.repeats, goToPracticeLive])
+  }, [competitors, practiceIterations, practiceInitialRepeatCounts, practiceStats.repeats, matches, goToPracticeLive])
 
   const handleNextPracticeRound = useCallback(() => {
     setCurrentPracticeRound((r) => r + 1)
   }, [])
+
+  const handleCommitPracticeRoster = useCallback(
+    (list) => {
+      const next = list.map((s) => String(s).trim()).filter(Boolean)
+      if (next.length < 2) {
+        return { error: 'Se necesitan al menos dos bailarines' }
+      }
+      if (next.length !== competitors.length) {
+        setPracticeRegenerateDraft(next)
+        return undefined
+      }
+      const v = validateEqualLengthRemap(competitors, next)
+      if (!v.ok) {
+        return { error: v.error }
+      }
+      if (Object.keys(v.map).length === 0) {
+        return undefined
+      }
+      const r = remapPracticeState({
+        matches,
+        competitorsAfter: next,
+        practiceIterations,
+        practiceInitialRepeatCounts,
+        map: v.map,
+      })
+      setCompetitors(r.competitors)
+      setMatches(r.matches)
+      setPracticeIterations(r.practiceIterations)
+      setPracticeStats(r.practiceStats)
+      setPracticeInitialRepeatCounts(r.practiceInitialRepeatCounts)
+      setActiveMatchId(null)
+      return undefined
+    },
+    [competitors, matches, practiceIterations, practiceInitialRepeatCounts]
+  )
+
+  const runPracticeRegenerate = useCallback(
+    (newNames) => {
+      if (!newNames || newNames.length < 2) {
+        return
+      }
+      const combinedRepeatCounts = { ...practiceInitialRepeatCounts }
+      for (const [name, n] of Object.entries(practiceStats.repeats ?? {})) {
+        combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
+      }
+      const idx = Math.max(0, practiceIterations.length - 1)
+      const { matches: generated, stats } = generatePracticeRounds(newNames, idx, combinedRepeatCounts)
+      const nextIters = !practiceIterations.length
+        ? [{ matches: generated, stats }]
+        : [...practiceIterations.slice(0, -1), { matches: generated, stats }]
+      setCompetitors(newNames)
+      setMatches(generated)
+      setActiveMatchId(null)
+      setCurrentPracticeRound(1)
+      setPracticeIterations(nextIters)
+      setPracticeStats(recomputeAggregatedStatsFromIterations(nextIters))
+    },
+    [practiceInitialRepeatCounts, practiceStats.repeats, practiceIterations]
+  )
 
   const goToPracticeHistory = useCallback(() => {
     window.history.pushState({ screen: SCREENS.PRACTICE_HISTORY }, '', '/practice/history')
@@ -378,13 +540,20 @@ function AppShell() {
   }, [])
 
   const handleFinishPractice = useCallback(async () => {
+    const iterations = !practiceIterations.length
+      ? practiceIterations
+      : [
+          ...practiceIterations.slice(0, -1),
+          { ...practiceIterations[practiceIterations.length - 1], matches, stats: buildStats(matches) },
+        ]
+    const stats = recomputeAggregatedStatsFromIterations(iterations)
     try {
       await savePracticeSession({
         started_at: practiceStartedAt,
         ended_at: new Date().toISOString(),
         competitors,
-        iterations: practiceIterations,
-        stats: practiceStats,
+        iterations,
+        stats,
       })
       await bumpFrequency(competitors)
       // Bump repeat_count for every dancer who was the odd-one-out across all iterations
@@ -406,7 +575,18 @@ function AppShell() {
     setPracticeInitialRepeatCounts({})
     setCurrentPracticeRound(1)
     goToPracticeHistory()
-  }, [savePracticeSession, practiceStartedAt, competitors, practiceIterations, practiceStats, bumpFrequency, bumpRepeatCount, clearRemote, goToPracticeHistory])
+  }, [
+    savePracticeSession,
+    practiceStartedAt,
+    competitors,
+    practiceIterations,
+    practiceStats,
+    matches,
+    bumpFrequency,
+    bumpRepeatCount,
+    clearRemote,
+    goToPracticeHistory,
+  ])
 
   const activeMatch = matches.find((m) => m.id === activeMatchId) ?? null
   const nonByeMatches = matches.filter((m) => !m.isBye)
@@ -505,6 +685,18 @@ function AppShell() {
         )}
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
 
+        {practiceRegenerateDraft && (
+          <PracticeRosterRegenerateModal
+            namesPreview={practiceRegenerateDraft}
+            onCancel={() => setPracticeRegenerateDraft(null)}
+            onConfirm={() => {
+              const d = practiceRegenerateDraft
+              setPracticeRegenerateDraft(null)
+              if (d) runPracticeRegenerate(d)
+            }}
+          />
+        )}
+
         <main className="flex-1 overflow-y-auto">
           {screen === SCREENS.DASHBOARD && (
             <DashboardScreen
@@ -520,8 +712,10 @@ function AppShell() {
 
           {(screen === SCREENS.SETUP || screen === SCREENS.PRACTICE_SETUP) && (
             <SetupScreen
-              initialCompetitors={competitors}
-              initialRoundTime={roundTime}
+              competitors={competitors}
+              setCompetitors={setCompetitors}
+              roundTime={roundTime}
+              setRoundTime={setRoundTime}
               onStart={handleStartTournament}
               onOpenPromoMenu={() => setMenuOpen(true)}
             />
@@ -536,6 +730,7 @@ function AppShell() {
               onQuickClose={handleQuickClose}
               onViewLeaderboard={handleViewLeaderboard}
               onReset={handleReset}
+              onUpdateMatchNames={handleUpdateMatchNames}
             />
           )}
 
@@ -544,6 +739,11 @@ function AppShell() {
               matches={matches}
               competitors={competitors}
               isTournament={false}
+              roundTime={roundTime}
+              sessionDanceCounts={sessionDanceCounts}
+              sessionCompletedPairings={sessionCompletedPairings}
+              onEditSetup={goToPracticeSetup}
+              onCommitPracticeRoster={handleCommitPracticeRoster}
               onStartBattle={handleStartBattle}
               onQuickClose={handleQuickClose}
               onViewLeaderboard={handleViewLeaderboard}
@@ -553,6 +753,7 @@ function AppShell() {
               onNextRound={handleNextPracticeRound}
               onNextPracticeIteration={handleNextPracticeIteration}
               onFinishPractice={handleFinishPractice}
+              onUpdateMatchNames={handleUpdateMatchNames}
             />
           )}
 
@@ -562,7 +763,7 @@ function AppShell() {
               roundTime={roundTime}
               isTournament={isTournament}
               onBattleEnd={handleBattleEnd}
-              onCancel={() => { setActiveMatchId(null); goTo(SCREENS.MATCHES) }}
+              onCancel={() => { setActiveMatchId(null); goToMatchList() }}
               nowPlaying={nowPlaying}
               onRoundStart={() => spotifyRef.current?.playNextInQueue()}
               onNextSong={() => spotifyRef.current?.playNextInQueue()}
