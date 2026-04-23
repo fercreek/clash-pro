@@ -16,7 +16,7 @@ export function useRoster() {
     setLoading(true)
     const { data, error: err } = await supabase
       .from('competitors')
-      .select('id, name, photo_url, frequency_count, last_danced_at, user_id')
+      .select('id, name, photo_url, frequency_count, repeat_count, last_danced_at, user_id')
       .order('frequency_count', { ascending: false })
       .order('last_danced_at', { ascending: false, nullsFirst: false })
       .limit(ROSTER_LIMIT)
@@ -82,5 +82,33 @@ export function useRoster() {
     await fetchRoster()
   }, [fetchRoster])
 
-  return { roster, loading, error, addDancer, bumpFrequency, refresh: fetchRoster }
+  // Bumps repeat_count for each name in the list.
+  // Called at session end for every dancer who was the "odd-one-out" repeater.
+  // Migration path to Opción B: swap this implementation to write user_dancer_stats.total_repeats
+  // — the caller interface (names[]) and semantics remain the same.
+  const bumpRepeatCount = useCallback(async (names) => {
+    if (!Array.isArray(names) || names.length === 0) return
+    const { data: rows } = await supabase
+      .from('competitors')
+      .select('id, name, repeat_count')
+      .in('name', names)
+
+    const existingByLower = new Map((rows ?? []).map((r) => [r.name.toLowerCase(), r]))
+
+    await Promise.all(
+      names.map(async (name) => {
+        const row = existingByLower.get(name.toLowerCase())
+        if (row) {
+          await supabase
+            .from('competitors')
+            .update({ repeat_count: (row.repeat_count ?? 0) + 1 })
+            .eq('id', row.id)
+        }
+        // No insert — repeater must already be in competitors (came from roster or bulk)
+      })
+    )
+    await fetchRoster()
+  }, [fetchRoster])
+
+  return { roster, loading, error, addDancer, bumpFrequency, bumpRepeatCount, refresh: fetchRoster }
 }

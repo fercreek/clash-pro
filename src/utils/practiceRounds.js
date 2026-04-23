@@ -22,14 +22,16 @@ function shuffled(arr) {
  *  - ≤ 3: fallback a round-robin clásico con BYE (imposible garantizar no-consecutivo).
  *
  * @param {string[]} names
- * @param {number} iterationIndex       rotación para segunda/tercera iteración
- * @param {Object} cumulativeAppearances apariciones acumuladas de iteraciones previas
- *   (bias: quien ya repitió mucho tiene menor prioridad para repetir de nuevo)
+ * @param {number} iterationIndex  rotación para segunda/tercera iteración
+ * @param {Object} repeatCounts    { [name]: totalRepeats } — histórico persistido en DB
+ *   (competitors.repeat_count + in-session repeats so far).
+ *   Migration path to Opción B: caller swaps source to user_dancer_stats.total_repeats;
+ *   this function's interface and semantics stay the same.
  * @returns {{ matches, stats }}
- *   matches: [{ id, round, playerA, playerB, isBye, isRepeat, completed, result }]
- *   stats: { appearances: {name: n}, pairs: [[a, b, n], ...] desc }
+ *   matches: [{ id, round, playerA, playerB, isBye, isRepeat, repeaterName, completed, result }]
+ *   stats: { appearances: {name: n}, repeats: {name: n}, pairs: [[a, b, n], ...] desc }
  */
-export function generatePracticeRounds(names, iterationIndex = 0, cumulativeAppearances = {}) {
+export function generatePracticeRounds(names, iterationIndex = 0, repeatCounts = {}) {
   if (!Array.isArray(names) || names.length < 2) {
     return { matches: [], stats: { appearances: {}, pairs: [] } }
   }
@@ -51,10 +53,9 @@ export function generatePracticeRounds(names, iterationIndex = 0, cumulativeAppe
   // Impar >3: round-robin con GHOST, reemplazo por repetidor
   const base = generateRoundRobin([...rotated, GHOST])
   const rounds = groupByRound(base)
-  // Seed appearances from cumulative (prev iterations) so the repeater bias carries over
-  const appearances = Object.fromEntries(
-    rotated.map((n) => [n, cumulativeAppearances[n] ?? 0])
-  )
+  // thisIterationRepeats: tracks who's already repeated within this call.
+  // Combined with repeatCounts (DB history) gives a full picture.
+  const thisIterationRepeats = Object.fromEntries(rotated.map((n) => [n, 0]))
   let prevRepeater = null
   const out = []
 
@@ -64,18 +65,16 @@ export function generatePracticeRounds(names, iterationIndex = 0, cumulativeAppe
       if (m.playerA === GHOST || m.playerB === GHOST) {
         // El partner de GHOST es el "solo": necesita pareja.
         // El repeater baila dos veces esta ronda (por diseño en número impar).
-        // Restricciones:
-        //   - no igual al partner
-        //   - no igual al repeater de la ronda previa (distribuir la carga)
-        //   - minimizar apariciones totales
-        // Tiebreaker: shuffled (random) — evita que el mismo alphabetically-first
-        //   siempre gane cuando varios tienen el mismo count.
+        // Sort key: DB repeat history + in-call repeats (ascending = least-burdened first).
+        // Tiebreaker: shuffle before sort so ties resolve randomly, not alphabetically.
         const partner = m.playerA === GHOST ? m.playerB : m.playerA
+        const score = (n) => (repeatCounts[n] ?? 0) + thisIterationRepeats[n]
         const candidates = shuffled(
           rotated.filter((n) => n !== partner && n !== prevRepeater)
-        ).sort((a, b) => appearances[a] - appearances[b])
+        ).sort((a, b) => score(a) - score(b))
         const repeater = candidates[0] ?? rotated.find((n) => n !== partner)
         repeaterThisRound = repeater
+        thisIterationRepeats[repeater] = (thisIterationRepeats[repeater] ?? 0) + 1
         out.push({
           id: m.id,
           round: m.round,
@@ -127,11 +126,15 @@ function groupByRound(matches) {
 
 function buildStats(matches) {
   const appearances = {}
+  const repeats = {}
   const pairMap = new Map()
   for (const m of matches) {
     if (m.isBye) continue
     appearances[m.playerA] = (appearances[m.playerA] ?? 0) + 1
     appearances[m.playerB] = (appearances[m.playerB] ?? 0) + 1
+    if (m.isRepeat && m.repeaterName) {
+      repeats[m.repeaterName] = (repeats[m.repeaterName] ?? 0) + 1
+    }
     const key = [m.playerA, m.playerB].sort().join(' ⇄ ')
     pairMap.set(key, (pairMap.get(key) ?? 0) + 1)
   }
@@ -141,7 +144,7 @@ function buildStats(matches) {
       return [a, b, count]
     })
     .sort((x, y) => y[2] - x[2])
-  return { appearances, pairs }
+  return { appearances, repeats, pairs }
 }
 
 /**
@@ -151,6 +154,10 @@ export function mergeStats(a, b) {
   const appearances = { ...(a?.appearances ?? {}) }
   for (const [name, n] of Object.entries(b?.appearances ?? {})) {
     appearances[name] = (appearances[name] ?? 0) + n
+  }
+  const repeats = { ...(a?.repeats ?? {}) }
+  for (const [name, n] of Object.entries(b?.repeats ?? {})) {
+    repeats[name] = (repeats[name] ?? 0) + n
   }
   const pairMap = new Map()
   for (const [x, y, n] of a?.pairs ?? []) {
@@ -166,5 +173,5 @@ export function mergeStats(a, b) {
       return [a2, b2, count]
     })
     .sort((x, y) => y[2] - x[2])
-  return { appearances, pairs }
+  return { appearances, repeats, pairs }
 }

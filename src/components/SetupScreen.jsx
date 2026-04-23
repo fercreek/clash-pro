@@ -22,6 +22,15 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
   const isTournament = mode === COMPETITION_MODE.tournament
   const { roster, addDancer } = useRoster()
 
+  // repeat_count map — passed to generatePracticeRounds so the algorithm knows
+  // who's already been the "odd-one-out" historically.
+  // Migration to Opción B: replace roster source with user_dancer_stats query here;
+  // onStart interface stays identical.
+  const repeatCounts = roster.reduce((acc, r) => {
+    acc[r.name] = r.repeat_count ?? 0
+    return acc
+  }, {})
+
   useEffect(() => {
     if (!canTournament && mode === COMPETITION_MODE.tournament) {
       setMode(COMPETITION_MODE.practice)
@@ -291,7 +300,7 @@ export default function SetupScreen({ initialCompetitors, initialRoundTime, onSt
         {/* CTA */}
         <button
           type="button"
-          onClick={() => onStart(competitors, roundTime)}
+          onClick={() => onStart(competitors, roundTime, repeatCounts)}
           disabled={!canStart}
           className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-black text-base tracking-tight transition-colors"
         >

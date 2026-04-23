@@ -114,13 +114,16 @@ function AppShell() {
   const [activeMatchId, setActiveMatchId] = useState(boot.activeMatchId)
   const [competitionMode, setCompetitionMode] = useState(boot.competitionMode)
   const [practiceIterations, setPracticeIterations] = useState([])
-  const [practiceStats, setPracticeStats] = useState({ appearances: {}, pairs: [] })
+  const [practiceStats, setPracticeStats] = useState({ appearances: {}, repeats: {}, pairs: [] })
   const [practiceStartedAt, setPracticeStartedAt] = useState(null)
   const [currentPracticeRound, setCurrentPracticeRound] = useState(1)
+  // DB repeat_count snapshot at session start — combined with in-session repeats
+  // for fair repeater distribution across iterations.
+  const [practiceInitialRepeatCounts, setPracticeInitialRepeatCounts] = useState({})
 
   const isTournament = competitionMode === COMPETITION_MODE.tournament
 
-  const { bumpFrequency } = useRoster()
+  const { bumpFrequency, bumpRepeatCount } = useRoster()
   const { save: savePracticeSession } = usePracticeSession()
 
   const goTo = useCallback((nextScreen, opts = {}) => {
@@ -263,16 +266,17 @@ function AppShell() {
     })
   }, [user?.id, hasHistory, competitionMode, matches, competitors, roundTime])
 
-  const handleStartTournament = useCallback((finalCompetitors, selectedTime) => {
+  const handleStartTournament = useCallback((finalCompetitors, selectedTime, repeatCounts = {}) => {
     archiveCompletedIfNeeded()
     if (competitionMode === COMPETITION_MODE.practice) {
-      const { matches: generated, stats } = generatePracticeRounds(finalCompetitors, 0)
+      const { matches: generated, stats } = generatePracticeRounds(finalCompetitors, 0, repeatCounts)
       setCompetitors(finalCompetitors)
       setRoundTime(selectedTime)
       setMatches(generated)
       setPracticeIterations([{ matches: generated, stats }])
       setPracticeStats(stats)
       setPracticeStartedAt(new Date().toISOString())
+      setPracticeInitialRepeatCounts(repeatCounts)
       setCurrentPracticeRound(1)
       goToPracticeLive()
       return
@@ -350,14 +354,19 @@ function AppShell() {
 
   const handleNextPracticeIteration = useCallback(() => {
     const nextIdx = practiceIterations.length
-    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx, practiceStats.appearances)
+    // Combine DB repeat history (initial snapshot) with who's already repeated this session
+    const combinedRepeatCounts = { ...practiceInitialRepeatCounts }
+    for (const [name, n] of Object.entries(practiceStats.repeats ?? {})) {
+      combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
+    }
+    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx, combinedRepeatCounts)
     setMatches(generated)
     setActiveMatchId(null)
     setPracticeIterations((prev) => [...prev, { matches: generated, stats }])
     setPracticeStats((prev) => mergeStats(prev, stats))
     setCurrentPracticeRound(1)
     goToPracticeLive()
-  }, [competitors, practiceIterations.length, goToPracticeLive])
+  }, [competitors, practiceIterations.length, practiceInitialRepeatCounts, practiceStats.repeats, goToPracticeLive])
 
   const handleNextPracticeRound = useCallback(() => {
     setCurrentPracticeRound((r) => r + 1)
@@ -378,6 +387,12 @@ function AppShell() {
         stats: practiceStats,
       })
       await bumpFrequency(competitors)
+      // Bump repeat_count for every dancer who was the odd-one-out across all iterations
+      const repeaterNames = practiceIterations
+        .flatMap((it) => it.matches ?? [])
+        .filter((m) => m.isRepeat && m.repeaterName)
+        .map((m) => m.repeaterName)
+      if (repeaterNames.length) await bumpRepeatCount(repeaterNames)
     } catch (err) {
       console.error('Finish practice failed:', err)
     }
@@ -386,11 +401,12 @@ function AppShell() {
     setMatches([])
     setActiveMatchId(null)
     setPracticeIterations([])
-    setPracticeStats({ appearances: {}, pairs: [] })
+    setPracticeStats({ appearances: {}, repeats: {}, pairs: [] })
     setPracticeStartedAt(null)
+    setPracticeInitialRepeatCounts({})
     setCurrentPracticeRound(1)
     goToPracticeHistory()
-  }, [savePracticeSession, practiceStartedAt, competitors, practiceIterations, practiceStats, bumpFrequency, clearRemote, goToPracticeHistory])
+  }, [savePracticeSession, practiceStartedAt, competitors, practiceIterations, practiceStats, bumpFrequency, bumpRepeatCount, clearRemote, goToPracticeHistory])
 
   const activeMatch = matches.find((m) => m.id === activeMatchId) ?? null
   const nonByeMatches = matches.filter((m) => !m.isBye)
