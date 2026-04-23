@@ -160,6 +160,8 @@ Sonidos existentes: `playBell` (inicio ronda), `playRoundEnd` (fin ronda), `play
 
 ## Deploy
 
+**REGLA PARA CLAUDE: nunca correr `npm run deploy` ni `vercel --prod` sin que Fernando lo pida explícitamente. Deploy a producción requiere confirmación verbal directa, no inferencia del contexto.**
+
 ```bash
 # Solo código (sin cambios de DB)
 npm run deploy
