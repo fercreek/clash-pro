@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Trophy, RotateCcw, CheckCircle, Clock, Coffee, Zap, X, Minus, Repeat, Flag, Users, Settings2, Activity, Pencil } from 'lucide-react'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
+import { Trophy, RotateCcw, CheckCircle, Clock, Coffee, Zap, X, Minus, Repeat, Flag, Users, Settings2, Activity, Pencil, Radio, Copy, ExternalLink } from 'lucide-react'
 import { calculateScores } from '../utils/roundRobin'
 import { showMatchesLeaderboardControls, showMatchesMiniRanking } from '../lib/featurePolicy'
+import { useAuth } from '../hooks/useAuth'
+import {
+  randomPublicId,
+  getStoredLivePublicId,
+  setStoredLivePublicId,
+  buildLiveUrl,
+  upsertTournamentPublicSnapshot,
+} from '../lib/tournamentLive'
 import PracticeRosterEditModal from './PracticeRosterEditModal'
 
 function MatchCard({
@@ -286,10 +294,41 @@ export default function MatchesScreen({
   sessionDanceCounts = null,
   sessionCompletedPairings = null,
   onUpdateMatchNames = null,
+  battleRoundCount = 4,
 }) {
+  const { user } = useAuth()
   const [viewMode, setViewMode] = useState('list')
   const [expandedId, setExpandedId] = useState(null)
   const [rosterOpen, setRosterOpen] = useState(false)
+  const [liveOpen, setLiveOpen] = useState(false)
+  const [syncLive, setSyncLive] = useState(false)
+  const [publicLiveId, setPublicLiveId] = useState(() => getStoredLivePublicId() || null)
+  const [copyOk, setCopyOk] = useState(false)
+  const publicLiveIdRef = useRef(publicLiveId)
+  publicLiveIdRef.current = publicLiveId
+
+  const ensurePublicId = useCallback(() => {
+    let id = publicLiveIdRef.current
+    if (!id) {
+      id = randomPublicId()
+      setPublicLiveId(id)
+      setStoredLivePublicId(id)
+    }
+    return id
+  }, [])
+
+  useEffect(() => {
+    if (!isTournament || !user || !syncLive) return
+    const pid = ensurePublicId()
+    const t = setTimeout(() => {
+      upsertTournamentPublicSnapshot({
+        userId: user.id,
+        publicId: pid,
+        payload: { competitors, matches, roundTime, battleRoundCount },
+      })
+    }, 800)
+    return () => clearTimeout(t)
+  }, [isTournament, user, syncLive, competitors, matches, roundTime, battleRoundCount, ensurePublicId])
 
   const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id))
 
@@ -341,6 +380,20 @@ export default function MatchesScreen({
   const allDone = pending.length === 0
   const showLb = showMatchesLeaderboardControls(isTournament)
   const showMini = showMatchesMiniRanking(isTournament)
+
+  const liveFullUrl = useMemo(
+    () => (publicLiveId ? buildLiveUrl(publicLiveId) : ''),
+    [publicLiveId]
+  )
+
+  const handleCopyLiveUrl = useCallback(async () => {
+    if (!liveFullUrl) return
+    try {
+      await navigator.clipboard.writeText(liveFullUrl)
+      setCopyOk(true)
+      setTimeout(() => setCopyOk(false), 2000)
+    } catch {}
+  }, [liveFullUrl])
 
   const danceRows = useMemo(() => {
     if (sessionDanceCounts == null || !competitors.length) return []
@@ -404,6 +457,23 @@ export default function MatchesScreen({
             >
               <Trophy size={15} className="text-amber-400" />
               Ranking
+            </button>
+          )}
+          {showLb && isTournament && user && (
+            <button
+              type="button"
+              onClick={() => {
+                setLiveOpen(true)
+                if (!publicLiveId) {
+                  const id = randomPublicId()
+                  setPublicLiveId(id)
+                  setStoredLivePublicId(id)
+                }
+              }}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium text-amber-300 transition-colors"
+            >
+              <Radio size={15} className="text-red-400" />
+              Proyectar
             </button>
           )}
           <button
@@ -712,6 +782,71 @@ export default function MatchesScreen({
             </>
           )}
         </section>
+      )}
+
+      {liveOpen && isTournament && user && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/70 z-[80]"
+            onClick={() => setLiveOpen(false)}
+            aria-hidden
+          />
+          <div className="fixed left-0 right-0 bottom-0 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-md sm:rounded-2xl z-[90] bg-zinc-950 border border-zinc-800 p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h3 className="text-lg font-black text-white">Vista pública en vivo</h3>
+              <button
+                type="button"
+                onClick={() => setLiveOpen(false)}
+                className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                aria-label="Cerrar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-zinc-500 text-sm mb-4">
+              Activa la sincronización para que un proyector o el público vean el ranking en casi tiempo real. El enlace no requiere cuenta.
+            </p>
+            <label className="flex items-center gap-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-zinc-600 text-red-500 focus:ring-red-500"
+                checked={syncLive}
+                onChange={(e) => setSyncLive(e.target.checked)}
+              />
+              <span className="text-white text-sm font-semibold">Sincronizar batallas ahora</span>
+            </label>
+            {publicLiveId && liveFullUrl && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-center p-3 bg-white rounded-2xl">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(liveFullUrl)}`}
+                    width={200}
+                    height={200}
+                    alt=""
+                    className="w-[200px] h-[200px]"
+                  />
+                </div>
+                <a
+                  href={liveFullUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-zinc-700 text-sm font-semibold text-amber-300 hover:bg-zinc-900"
+                >
+                  <ExternalLink size={16} />
+                  Abrir vista pública
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCopyLiveUrl}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-zinc-800 text-sm font-semibold text-white"
+                >
+                  <Copy size={16} />
+                  {copyOk ? 'Copiado' : 'Copiar enlace'}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

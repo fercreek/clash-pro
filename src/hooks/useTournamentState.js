@@ -28,6 +28,7 @@ export function useTournamentPersistence({ user, isFree, onLoaded }) {
       .then(({ data, error }) => {
         if (error) { return }
         if (data) {
+          const br = data.battle_round_count
           onLoaded({
             competitors: data.competitors ?? [],
             matches: data.matches ?? [],
@@ -35,6 +36,8 @@ export function useTournamentPersistence({ user, isFree, onLoaded }) {
             screen: data.screen ?? 'setup',
             activeMatchId: data.active_match_id ?? null,
             competitionMode: normalizeLoadedMode(data.competition_mode, isFreeRef.current),
+            battleRoundCount:
+              br != null && br >= 1 && br <= 4 ? br : 4,
           })
         }
       })
@@ -49,6 +52,7 @@ export function useTournamentPersistence({ user, isFree, onLoaded }) {
         const mode = free
           ? COMPETITION_MODE.practice
           : (nextState.competitionMode ?? COMPETITION_MODE.tournament)
+        const br = nextState.battleRoundCount
         const row = {
           user_id: user.id,
           competitors: nextState.competitors,
@@ -57,6 +61,8 @@ export function useTournamentPersistence({ user, isFree, onLoaded }) {
           screen: nextState.screen,
           active_match_id: nextState.activeMatchId ?? null,
           competition_mode: mode,
+          battle_round_count:
+            br != null && br >= 1 && br <= 4 ? br : 4,
         }
         await supabase.from('user_tournament_state').upsert(row, { onConflict: 'user_id' })
       }, DEBOUNCE_MS)
@@ -67,6 +73,7 @@ export function useTournamentPersistence({ user, isFree, onLoaded }) {
   const clearRemote = useCallback(async () => {
     if (!user) return
     await supabase.from('user_tournament_state').delete().eq('user_id', user.id)
+    await supabase.from('tournament_public_snapshots').delete().eq('user_id', user.id)
   }, [user])
 
   return { save, clearRemote }

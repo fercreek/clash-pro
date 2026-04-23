@@ -1,8 +1,9 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
-import { Trophy, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw } from 'lucide-react'
+import { Trophy, ArrowLeft, RotateCcw, Share2, Copy, MessageCircle, RefreshCw, ImageDown } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { calculateScores, computeExtendedStats } from '../utils/roundRobin'
 import { AV_BG } from '../utils/avatarColors'
+import { shareOrDownloadLeaderboardPng } from '../utils/shareLeaderboardImage'
 
 function buildWhatsAppText(leaderboard, extStats, completedMatches, totalMatches, isFinished) {
   const lines = ['🏆 ClashPro — Resultado de hoy', '']
@@ -116,8 +117,10 @@ export default function LeaderboardScreen({
   showConfetti = true,
   showRichWhatsApp = true,
   showFooterActions = true,
+  showBackButton = true,
 }) {
   const [copyDone, setCopyDone] = useState(false)
+  const [imageBusy, setImageBusy] = useState(false)
   const confettiFiredRef = useRef(false)
 
   const leaderboard = useMemo(() => calculateScores(competitors, matches), [competitors, matches])
@@ -174,6 +177,34 @@ export default function LeaderboardScreen({
     window.open(`https://wa.me/?text=${encodeURIComponent(whatsappText)}`, '_blank', 'noopener,noreferrer')
   }, [whatsappText])
 
+  const dateLabel = useMemo(
+    () =>
+      new Date().toLocaleString('es', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    []
+  )
+
+  const handleShareImage = useCallback(async () => {
+    if (imageBusy) return
+    setImageBusy(true)
+    try {
+      await shareOrDownloadLeaderboardPng({
+        leaderboard,
+        completedMatches,
+        totalMatches,
+        isFinished,
+        dateLabel,
+      })
+    } finally {
+      setImageBusy(false)
+    }
+  }, [leaderboard, completedMatches, totalMatches, isFinished, dateLabel, imageBusy])
+
   const [first, second, third, ...rest] = leaderboard
 
   return (
@@ -187,6 +218,7 @@ export default function LeaderboardScreen({
 
       {/* header */}
       <div className="relative px-5 pt-5 pb-3 flex items-center justify-between">
+        {showBackButton ? (
         <button
           type="button"
           onClick={onBack}
@@ -194,6 +226,9 @@ export default function LeaderboardScreen({
         >
           <ArrowLeft size={18} />
         </button>
+        ) : (
+        <div className="w-10" />
+        )}
 
         <div className="text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400">
@@ -203,6 +238,15 @@ export default function LeaderboardScreen({
         </div>
 
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleShareImage}
+            disabled={imageBusy}
+            className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            title="Imagen Stories (1080×1920)"
+          >
+            <ImageDown size={16} />
+          </button>
           <button
             type="button"
             onClick={handleWhatsApp}

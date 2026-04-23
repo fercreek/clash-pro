@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
-import { X, History, ChevronRight, Loader2 } from 'lucide-react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { X, History, ChevronRight, Loader2, BarChart2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { fetchTournamentArchives } from '../lib/tournamentArchives'
 import { calculateScores, isRoundRobinFinished } from '../utils/roundRobin'
+import { aggregateCareerStatsFromArchives, statsForArchiveRow, topCareerByWins } from '../utils/tournamentStats'
 import LeaderboardScreen from './LeaderboardScreen'
 
 function formatWhen(iso) {
@@ -37,6 +38,9 @@ export default function TournamentHistoryModal({ onClose }) {
   useEffect(() => {
     load()
   }, [load])
+
+  const career = useMemo(() => aggregateCareerStatsFromArchives(rows), [rows])
+  const top3 = useMemo(() => topCareerByWins(career.players, 3), [career.players])
 
   const noop = () => {}
 
@@ -85,13 +89,47 @@ export default function TournamentHistoryModal({ onClose }) {
               </p>
             </div>
           ) : (
-            <ul className="p-3 space-y-2">
+            <div className="p-3 space-y-3">
+              {career.tournamentsConsidered > 0 && top3.length > 0 && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BarChart2 size={16} className="text-amber-400 shrink-0" />
+                    <p className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                      Récord en todos los torneos
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mb-2">
+                    {career.tournamentsConsidered} torneo
+                    {career.tournamentsConsidered !== 1 ? 's' : ''} guardado
+                    {career.tournamentsConsidered !== 1 ? 's' : ''}
+                  </p>
+                  <ol className="space-y-1.5">
+                    {top3.map((p, i) => (
+                      <li
+                        key={p.name}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span className="text-zinc-300 font-semibold truncate pr-2">
+                          {i + 1}. {p.name}
+                        </span>
+                        <span className="text-zinc-500 text-xs shrink-0 tabular-nums">
+                          {p.wins}V {p.losses}D
+                          {p.draws ? ` ${p.draws}E` : ''} · {p.winRate}%
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            <ul className="space-y-2">
               {rows.map((row) => {
                 const comps = row.competitors ?? []
                 const ms = row.matches ?? []
                 const lb = calculateScores(comps, ms)
                 const champ = lb[0]?.name ?? '—'
                 const done = isRoundRobinFinished(ms)
+                const perT = statsForArchiveRow(row)
+                const mvp = perT.length ? [...perT].sort((a, b) => b.wins - a.wins)[0] : null
                 return (
                   <li key={row.id}>
                     <button
@@ -105,6 +143,9 @@ export default function TournamentHistoryModal({ onClose }) {
                         </p>
                         <p className="text-zinc-500 text-xs mt-0.5">
                           {formatWhen(row.finished_at)} · {comps.length} competidores
+                          {mvp && mvp.played > 0 ? (
+                            <span className="text-zinc-600"> · {mvp.name}: {mvp.wins}V {mvp.losses}D</span>
+                          ) : null}
                         </p>
                       </div>
                       <ChevronRight size={18} className="text-zinc-600 shrink-0" />
@@ -113,6 +154,7 @@ export default function TournamentHistoryModal({ onClose }) {
                 )
               })}
             </ul>
+            </div>
           )}
         </div>
       </div>

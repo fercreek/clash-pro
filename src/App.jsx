@@ -14,6 +14,7 @@ import PatternsScreen from './components/PatternsScreen'
 import PracticeHistoryScreen from './components/PracticeHistoryScreen'
 import PracticeRosterRegenerateModal from './components/PracticeRosterRegenerateModal'
 import DashboardScreen from './components/DashboardScreen'
+import PublicLiveScreen from './components/PublicLiveScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
 import {
   aggregateSessionDanceCounts,
@@ -107,6 +108,12 @@ function AppShell() {
     return null
   })
   const [blogFilter, setBlogFilter] = useState(null)
+  const [livePathId] = useState(() => {
+    if (typeof window === 'undefined') return null
+    const p = window.location.pathname
+    if (!p.startsWith('/live/')) return null
+    return p.split('/').filter(Boolean)[1] || null
+  })
   const spotifyRef = useRef(null)
   const [boot] = useState(computeBootState)
   const [screen, setScreen] = useState(() => {
@@ -217,6 +224,9 @@ function AppShell() {
   }, [])
 
   const onTournamentLoaded = useCallback((payload) => {
+    if (payload.battleRoundCount != null) {
+      setBattleRoundCount(Math.min(4, Math.max(1, Number(payload.battleRoundCount) || 4)))
+    }
     if (payload.matches?.length) {
       if (window.location.pathname === '/dashboard') return
       const norm = normalizeHydratedScreen(payload.screen, payload.activeMatchId)
@@ -240,8 +250,8 @@ function AppShell() {
   })
 
   useEffect(() => {
-    saveTournament({ competitors, matches, roundTime, screen, activeMatchId, competitionMode })
-  }, [competitors, matches, roundTime, screen, activeMatchId, competitionMode, saveTournament])
+    saveTournament({ competitors, matches, roundTime, screen, activeMatchId, competitionMode, battleRoundCount })
+  }, [competitors, matches, roundTime, screen, activeMatchId, competitionMode, battleRoundCount, saveTournament])
 
   useEffect(() => {
     if (!user) return
@@ -600,6 +610,14 @@ function AppShell() {
   const lbShowConfetti = showConfettiOnLeaderboard(isTournament)
   const lbShowRichWa = showRichWhatsAppInLeaderboard(hasStats, isTournament)
 
+  if (livePathId) {
+    return (
+      <div className="flex flex-col h-full bg-zinc-950 text-white">
+        <PublicLiveScreen publicId={livePathId} />
+      </div>
+    )
+  }
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-zinc-950">
@@ -795,6 +813,8 @@ function AppShell() {
               matches={matches}
               competitors={competitors}
               isTournament={isTournament}
+              roundTime={roundTime}
+              battleRoundCount={battleRoundCount}
               onStartBattle={handleStartBattle}
               onQuickClose={handleQuickClose}
               onViewLeaderboard={handleViewLeaderboard}
