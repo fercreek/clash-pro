@@ -350,7 +350,7 @@ function AppShell() {
 
   const handleNextPracticeIteration = useCallback(() => {
     const nextIdx = practiceIterations.length
-    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx)
+    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx, practiceStats.appearances)
     setMatches(generated)
     setActiveMatchId(null)
     setPracticeIterations((prev) => [...prev, { matches: generated, stats }])

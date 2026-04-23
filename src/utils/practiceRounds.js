@@ -2,6 +2,16 @@ import { generateRoundRobin } from './roundRobin'
 
 const GHOST = '__REPEAT__'
 
+// Fisher-Yates shuffle — ensures ties among candidates are random, not alphabetical
+function shuffled(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 /**
  * Arma rondas para una sesión de práctica.
  *
@@ -12,12 +22,14 @@ const GHOST = '__REPEAT__'
  *  - ≤ 3: fallback a round-robin clásico con BYE (imposible garantizar no-consecutivo).
  *
  * @param {string[]} names
- * @param {number} iterationIndex  rotación para segunda/tercera iteración
+ * @param {number} iterationIndex       rotación para segunda/tercera iteración
+ * @param {Object} cumulativeAppearances apariciones acumuladas de iteraciones previas
+ *   (bias: quien ya repitió mucho tiene menor prioridad para repetir de nuevo)
  * @returns {{ matches, stats }}
  *   matches: [{ id, round, playerA, playerB, isBye, isRepeat, completed, result }]
  *   stats: { appearances: {name: n}, pairs: [[a, b, n], ...] desc }
  */
-export function generatePracticeRounds(names, iterationIndex = 0) {
+export function generatePracticeRounds(names, iterationIndex = 0, cumulativeAppearances = {}) {
   if (!Array.isArray(names) || names.length < 2) {
     return { matches: [], stats: { appearances: {}, pairs: [] } }
   }
@@ -39,7 +51,10 @@ export function generatePracticeRounds(names, iterationIndex = 0) {
   // Impar >3: round-robin con GHOST, reemplazo por repetidor
   const base = generateRoundRobin([...rotated, GHOST])
   const rounds = groupByRound(base)
-  const appearances = Object.fromEntries(rotated.map((n) => [n, 0]))
+  // Seed appearances from cumulative (prev iterations) so the repeater bias carries over
+  const appearances = Object.fromEntries(
+    rotated.map((n) => [n, cumulativeAppearances[n] ?? 0])
+  )
   let prevRepeater = null
   const out = []
 
@@ -53,10 +68,12 @@ export function generatePracticeRounds(names, iterationIndex = 0) {
         //   - no igual al partner
         //   - no igual al repeater de la ronda previa (distribuir la carga)
         //   - minimizar apariciones totales
+        // Tiebreaker: shuffled (random) — evita que el mismo alphabetically-first
+        //   siempre gane cuando varios tienen el mismo count.
         const partner = m.playerA === GHOST ? m.playerB : m.playerA
-        const candidates = rotated
-          .filter((n) => n !== partner && n !== prevRepeater)
-          .sort((a, b) => appearances[a] - appearances[b] || a.localeCompare(b))
+        const candidates = shuffled(
+          rotated.filter((n) => n !== partner && n !== prevRepeater)
+        ).sort((a, b) => appearances[a] - appearances[b])
         const repeater = candidates[0] ?? rotated.find((n) => n !== partner)
         repeaterThisRound = repeater
         out.push({
