@@ -45,3 +45,42 @@ export function dedupeRosterForViewerTable(rows, viewerUserId) {
   }
   return [...by.values()]
 }
+
+function rosterRowByNameKey(rows, userId) {
+  const m = new Map()
+  for (const r of rows ?? []) {
+    if (r.deleted_at) continue
+    const k = normalizeDancerNameKey(r.name)
+    if (!k) continue
+    const cur = m.get(k)
+    m.set(k, cur ? pickCanonicalRow(cur, r, userId) : r)
+  }
+  return m
+}
+
+export function filterSessionNamesByRosterVisibility(names, rosterRows, userId) {
+  const byKey = rosterRowByNameKey(rosterRows, userId)
+  return (names ?? []).filter((n) => {
+    const k = normalizeDancerNameKey(n)
+    if (!k) return true
+    const row = byKey.get(k)
+    if (!row) return true
+    return row.is_active !== false
+  })
+}
+
+export function matchesVisibleForCompetitors(matches, competitorNames) {
+  const list = matches ?? []
+  const allowed = new Set()
+  for (const n of competitorNames ?? []) {
+    const k = normalizeDancerNameKey(n)
+    if (k) allowed.add(k)
+  }
+  const playerOk = (p) => {
+    if (p == null || p === 'BYE') return true
+    return allowed.has(normalizeDancerNameKey(String(p)))
+  }
+  const out = list.filter((m) => playerOk(m.playerA) && playerOk(m.playerB))
+  if (out.length === list.length) return matches
+  return out
+}

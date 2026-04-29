@@ -19,7 +19,7 @@ function fmtShort(iso) {
   }
 }
 
-function DancerTableRow({ dancer, onPatch, onHardDelete }) {
+function DancerTableRow({ dancer, onPatch, onSetVisibility, onHardDelete }) {
   const [nameDraft, setNameDraft] = useState(dancer.name)
   const archived = !!dancer.deleted_at
 
@@ -104,7 +104,11 @@ function DancerTableRow({ dancer, onPatch, onHardDelete }) {
           <div className="inline-flex rounded-lg border border-zinc-700 overflow-hidden">
             <button
               type="button"
-              onClick={() => onPatch(dancer.id, { is_active: true })}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                void onSetVisibility(true)
+              }}
               className={`px-2 py-1 text-[10px] font-black uppercase tracking-wide transition-colors ${
                 active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'
               }`}
@@ -113,7 +117,11 @@ function DancerTableRow({ dancer, onPatch, onHardDelete }) {
             </button>
             <button
               type="button"
-              onClick={() => onPatch(dancer.id, { is_active: false })}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                void onSetVisibility(false)
+              }}
               className={`px-2 py-1 text-[10px] font-black uppercase tracking-wide border-l border-zinc-700 transition-colors ${
                 !active ? 'bg-zinc-600/40 text-zinc-200' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'
               }`}
@@ -168,20 +176,19 @@ export default function DancersScreen({ onBack }) {
     loading,
     error: rosterError,
     updateDancer,
+    updateVisibilityByNameKey,
     addDancer,
     refresh,
     deleteDancerPermanent,
-    mergeDuplicateCompetitorsByName,
   } = useRoster()
   const [filter, setFilter] = useState('active')
   const [addingName, setAddingName] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [mergeBusy, setMergeBusy] = useState(false)
   const addInputRef = useRef(null)
 
   const filtered = useMemo(() => {
     const alive = (r) => !r.deleted_at
-    if (filter === 'active') return roster.filter((r) => alive(r) && r.is_active !== false)
+    if (filter === 'active') return roster.filter((r) => alive(r))
     if (filter === 'hidden') return roster.filter((r) => alive(r) && r.is_active === false)
     if (filter === 'archived') return roster.filter((r) => !!r.deleted_at)
     return [...roster].sort((a, b) => {
@@ -200,6 +207,11 @@ export default function DancersScreen({ onBack }) {
   const displayRows = useMemo(() => {
     const deduped = dedupeRosterForViewerTable(filtered, viewerId)
     return [...deduped].sort((a, b) => {
+      if (filter === 'active') {
+        const ah = a.is_active === false ? 1 : 0
+        const bh = b.is_active === false ? 1 : 0
+        if (ah !== bh) return ah - bh
+      }
       if (filter === 'all') {
         const ad = a.deleted_at ? 1 : 0
         const bd = b.deleted_at ? 1 : 0
@@ -215,11 +227,11 @@ export default function DancersScreen({ onBack }) {
   const counts = useMemo(() => {
     const alive = (r) => !r.deleted_at
     const uid = user?.id ?? ''
-    const active = dedupeRosterForViewerTable(roster.filter((r) => alive(r) && r.is_active !== false), uid).length
+    const rosterAlive = dedupeRosterForViewerTable(roster.filter((r) => alive(r)), uid).length
     const hidden = dedupeRosterForViewerTable(roster.filter((r) => alive(r) && r.is_active === false), uid).length
     const archived = dedupeRosterForViewerTable(roster.filter((r) => !!r.deleted_at), uid).length
     const all = dedupeRosterForViewerTable(roster, uid).length
-    return { active, hidden, archived, all }
+    return { rosterAlive, hidden, archived, all }
   }, [roster, user?.id])
 
   const hasHiddenDupes = viewerId && filtered.length > displayRows.length
@@ -243,25 +255,6 @@ export default function DancersScreen({ onBack }) {
     },
     [deleteDancerPermanent, refresh],
   )
-
-  const handleMergeDuplicates = useCallback(async () => {
-    if (
-      !window.confirm(
-        'Se unen filas con el mismo nombre (sin distinguir mayúsculas). Se suman rondas y repeticiones en una sola fila y se borran las demás de la base. ¿Continuar?',
-      )
-    ) {
-      return
-    }
-    setMergeBusy(true)
-    const r = await mergeDuplicateCompetitorsByName()
-    setMergeBusy(false)
-    if (!r.ok) return
-    if (r.removed > 0) {
-      window.alert(`Listo: se eliminaron ${r.removed} filas duplicadas.`)
-    } else {
-      window.alert('No había duplicados por nombre en las primeras 500 filas de tu cuenta.')
-    }
-  }, [mergeDuplicateCompetitorsByName])
 
   const openAdd = () => {
     setShowAdd(true)
@@ -320,18 +313,18 @@ export default function DancersScreen({ onBack }) {
       )}
 
       <p className="px-3 sm:px-4 pt-2 pb-1 text-[11px] text-zinc-500 leading-snug">
-        Solo tu roster en cuenta. Un mismo nombre no se repite en la tabla salvo que la fila sea de otro usuario (otro id). <span className="text-zinc-600">Archivo</span> es suave; la papelera borra en la base. Fusionar une duplicados reales en la base.
+        Solo tu roster en cuenta. Un mismo nombre no se repite en la tabla salvo que la fila sea de otro usuario (otro id). <span className="text-zinc-600">Archivo</span> es suave; la papelera borra en la base.
       </p>
 
       {hasHiddenDupes && (
         <p className="px-3 sm:px-4 text-[10px] text-amber-500/90 leading-snug">
-          Hay más de una fila con el mismo nombre en la base; aquí ves la prioritaria. Fusionar duplicados une estadísticas y borra el resto.
+          Hay más de una fila con el mismo nombre en la base; aquí ves la fila prioritaria para esa clave.
         </p>
       )}
 
       <div className="px-3 sm:px-4 pb-2 flex flex-wrap gap-1.5 items-center">
         {[
-          { id: 'active', label: 'En lista', n: counts.active },
+          { id: 'active', label: 'Roster', n: counts.rosterAlive },
           { id: 'hidden', label: 'Ocultos', n: counts.hidden },
           { id: 'archived', label: 'Archivo', n: counts.archived },
           { id: 'all', label: 'Todos', n: counts.all },
@@ -347,14 +340,6 @@ export default function DancersScreen({ onBack }) {
             {t.label} <span className="tabular-nums opacity-70">({t.n})</span>
           </button>
         ))}
-        <button
-          type="button"
-          disabled={mergeBusy || loading}
-          onClick={handleMergeDuplicates}
-          className="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wide border border-amber-600/40 bg-amber-950/40 text-amber-200/90 hover:bg-amber-950/70 disabled:opacity-40 transition-colors"
-        >
-          {mergeBusy ? '…' : 'Fusionar duplicados'}
-        </button>
       </div>
 
       {showAdd && (
@@ -397,7 +382,7 @@ export default function DancersScreen({ onBack }) {
           <div className="py-16 text-center space-y-2 px-4">
             <p className="text-zinc-500 text-sm">
               {filter === 'active'
-                ? 'No hay nadie en lista. Agrega uno o reactiva ocultos.'
+                ? 'No hay nadie en el roster. Agrega uno o restaura desde archivo.'
                 : filter === 'hidden'
                   ? 'No hay bailarines ocultos.'
                   : filter === 'archived'
@@ -428,7 +413,13 @@ export default function DancersScreen({ onBack }) {
               </thead>
               <tbody>
                 {displayRows.map((d) => (
-                  <DancerTableRow key={d.id} dancer={d} onPatch={patchDancer} onHardDelete={handleHardDelete} />
+                  <DancerTableRow
+                    key={d.id}
+                    dancer={d}
+                    onPatch={patchDancer}
+                    onSetVisibility={(next) => updateVisibilityByNameKey(d.name, next)}
+                    onHardDelete={handleHardDelete}
+                  />
                 ))}
               </tbody>
             </table>

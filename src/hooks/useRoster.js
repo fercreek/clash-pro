@@ -128,12 +128,53 @@ export function useRoster() {
       .from('competitors')
       .update(allowed)
       .eq('id', id)
-      .select()
-      .single()
-    if (err) { setError(err); return null }
-    setRoster((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)))
-    return data
+      .select(COLS_FULL)
+    if (err) {
+      setError(err)
+      return null
+    }
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row) {
+      setError({ message: 'No se pudo guardar el cambio.' })
+      return null
+    }
+    const merged = { ...rosterRef.current.find((r) => r.id === id), ...row, ...allowed }
+    setRoster((prev) => prev.map((r) => (r.id === id ? merged : r)))
+    return merged
   }, [])
+
+  const updateVisibilityByNameKey = useCallback(async (displayName, isActive) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return null
+    const key = normalizeDancerNameKey(displayName)
+    if (!key) return null
+    const ids = rosterRef.current
+      .filter((r) => !r.deleted_at && normalizeDancerNameKey(r.name) === key)
+      .map((r) => r.id)
+    if (ids.length === 0) return null
+    setError(null)
+    if (ids.length === 1) {
+      return updateDancer(ids[0], { is_active: isActive })
+    }
+    const { data, error: err } = await supabase
+      .from('competitors')
+      .update({ is_active: isActive })
+      .in('id', ids)
+      .select(COLS_FULL)
+    if (err) {
+      setError(err)
+      return null
+    }
+    const byId = new Map((data ?? []).map((row) => [row.id, row]))
+    setRoster((prev) =>
+      prev.map((r) => {
+        if (!ids.includes(r.id)) return r
+        const row = byId.get(r.id)
+        return row ? { ...r, ...row } : { ...r, is_active: isActive }
+      }),
+    )
+    return data
+  }, [updateDancer])
 
   const bumpFrequency = useCallback(async (countMap) => {
     const entries = typeof countMap === 'object' && !Array.isArray(countMap)
@@ -222,78 +263,16 @@ export function useRoster() {
     return true
   }, [])
 
-  const mergeDuplicateCompetitorsByName = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user?.id) return { removed: 0, ok: true }
-    const runSelect = async (cols) =>
-      scopeByUser(supabase.from('competitors').select(cols), user.id).order('id').limit(MERGE_FETCH_LIMIT)
-    let res = await runSelect(COLS_FULL)
-    if (res.error && /deleted_at/i.test(String(res.error.message || ''))) {
-      res = await runSelect(COLS_NO_DELETED)
-    }
-    if (res.error) {
-      setError(res.error)
-      return { removed: 0, ok: false }
-    }
-    const rows = res.data ?? []
-    const groups = new Map()
-    for (const r of rows) {
-      const k = normalizeDancerNameKey(r.name)
-      if (!k) continue
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k).push(r)
-    }
-    let removed = 0
-    for (const list of groups.values()) {
-      if (list.length < 2) continue
-      const keyNorm = normalizeDancerNameKey(list[0].name)
-      if (!list.every((x) => normalizeDancerNameKey(x.name) === keyNorm)) continue
-      let keeper = list[0]
-      for (let i = 1; i < list.length; i++) {
-        keeper = pickCanonicalRow(keeper, list[i], user.id)
-      }
-      const others = list.filter((x) => x.id !== keeper.id)
-      const sumF = list.reduce((s, x) => s + (x.frequency_count ?? 0), 0)
-      const sumR = list.reduce((s, x) => s + (x.repeat_count ?? 0), 0)
-      const lasts = list.map((x) => x.last_danced_at).filter(Boolean).sort()
-      const maxLast = lasts.length ? lasts[lasts.length - 1] : null
-      const { error: upErr } = await supabase
-        .from('competitors')
-        .update({
-          frequency_count: sumF,
-          repeat_count: sumR,
-          ...(maxLast ? { last_danced_at: maxLast } : {}),
-        })
-        .eq('id', keeper.id)
-      if (upErr) {
-        setError(upErr)
-        return { removed, ok: false }
-      }
-      const ids = others.map((o) => o.id)
-      if (ids.length) {
-        const { error: delErr } = await supabase.from('competitors').delete().in('id', ids)
-        if (delErr) {
-          setError(delErr)
-          return { removed, ok: false }
-        }
-        removed += ids.length
-      }
-    }
-    setError(null)
-    await fetchRoster()
-    return { removed, ok: true }
-  }, [fetchRoster])
-
   return {
     roster,
     loading,
     error,
     addDancer,
     updateDancer,
+    updateVisibilityByNameKey,
     bumpFrequency,
     bumpRepeatCount,
     deleteDancerPermanent,
-    mergeDuplicateCompetitorsByName,
     refresh: fetchRoster,
   }
 }

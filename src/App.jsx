@@ -22,6 +22,7 @@ import {
   buildStats,
   generatePracticeRounds,
   mergeStats,
+  prunePracticeIterationsForCompetitors,
   sessionCompletedNonByePairings,
 } from './utils/practiceRounds'
 import {
@@ -34,7 +35,12 @@ import { useRoster } from './hooks/useRoster'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
 import { useAuth } from './hooks/useAuth'
-import { pickCanonicalRow, normalizeDancerNameKey } from './lib/rosterCanonical'
+import {
+  pickCanonicalRow,
+  normalizeDancerNameKey,
+  filterSessionNamesByRosterVisibility,
+  matchesVisibleForCompetitors,
+} from './lib/rosterCanonical'
 import { usePlan } from './hooks/usePlan'
 import { CompetitionModeProvider } from './hooks/useMode'
 import { supabase } from './lib/supabase'
@@ -164,7 +170,9 @@ function AppShell() {
     [competitionMode, practiceIterations, matches]
   )
 
-  const { roster, bumpFrequency, bumpRepeatCount } = useRoster()
+  const { roster, loading: rosterLoading, bumpFrequency, bumpRepeatCount } = useRoster()
+  const rosterLatestRef = useRef(roster)
+  rosterLatestRef.current = roster
 
   // levelOf: { [name]: level } — built from roster for level-aware pairing
   const levelOf = useMemo(() => {
@@ -254,14 +262,25 @@ function AppShell() {
       if (payload.competitionMode === COMPETITION_MODE.practice) {
         if (s === SCREENS.LEADERBOARD || s === SCREENS.MATCHES) s = SCREENS.PRACTICE_LIVE
       }
-      setCompetitors(payload.competitors)
-      setMatches(payload.matches)
+      const uid = user?.id
+      const nextComp = filterSessionNamesByRosterVisibility(
+        payload.competitors ?? [],
+        rosterLatestRef.current,
+        uid,
+      )
+      const pruned = matchesVisibleForCompetitors(payload.matches, nextComp)
+      setCompetitors(nextComp)
+      setMatches(pruned)
       setRoundTime(payload.roundTime)
       setScreen(s)
-      setActiveMatchId(norm.activeMatchId)
+      setActiveMatchId(
+        norm.activeMatchId && pruned.some((m) => m.id === norm.activeMatchId)
+          ? norm.activeMatchId
+          : null,
+      )
       setCompetitionMode(payload.competitionMode)
     }
-  }, [])
+  }, [user?.id])
 
   const { save: saveTournament, clearRemote } = useTournamentPersistence({
     user,
@@ -283,10 +302,38 @@ function AppShell() {
       .order('name')
       .then(({ data }) => {
         if (data?.length) {
-          setCompetitors(data.filter((c) => c.is_active).map((c) => c.name))
+          setCompetitors(data.filter((c) => c.is_active !== false).map((c) => c.name))
         }
       })
   }, [user, screen])
+
+  useEffect(() => {
+    if (rosterLoading) return
+    let namesForMatches = competitors
+    if (user?.id) {
+      const nextC = filterSessionNamesByRosterVisibility(competitors, roster, user.id)
+      const sameC =
+        nextC.length === competitors.length &&
+        nextC.every((n, i) => n === competitors[i])
+      if (!sameC) {
+        setCompetitors(nextC)
+        namesForMatches = nextC
+      }
+    }
+    const prunedMatches = matchesVisibleForCompetitors(matches, namesForMatches)
+    if (prunedMatches !== matches) {
+      setMatches(prunedMatches)
+    }
+    const nextI = prunePracticeIterationsForCompetitors(practiceIterations, namesForMatches)
+    if (nextI !== practiceIterations) {
+      setPracticeIterations(nextI)
+      setPracticeStats(recomputeAggregatedStatsFromIterations(nextI))
+    }
+    setActiveMatchId((aid) => {
+      if (!aid) return null
+      return prunedMatches.some((m) => m.id === aid) ? aid : null
+    })
+  }, [rosterLoading, roster, user?.id, competitors, matches, practiceIterations])
 
   useEffect(() => {
     // Sync current matches into last iteration slot before saving so reload restores full state.

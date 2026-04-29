@@ -1,4 +1,5 @@
 import { generateRoundRobin } from './roundRobin.js'
+import { matchesVisibleForCompetitors } from '../lib/rosterCanonical.js'
 
 const GHOST = '__REPEAT__'
 
@@ -314,4 +315,21 @@ export function mergeStats(a, b) {
     })
     .sort((x, y) => y[2] - x[2])
   return { appearances, repeats, pairs }
+}
+
+export function prunePracticeIterationsForCompetitors(iters, competitorNames) {
+  if (!Array.isArray(iters) || iters.length === 0) return iters
+  let touched = false
+  const out = iters.map((it) => {
+    const prevM = it.matches ?? []
+    const nm = matchesVisibleForCompetitors(prevM, competitorNames)
+    if (nm === prevM) return it
+    const same =
+      nm.length === prevM.length &&
+      nm.every((x, i) => x === prevM[i])
+    if (same) return it
+    touched = true
+    return { ...it, matches: nm, stats: buildStats(nm) }
+  })
+  return touched ? out : iters
 }
