@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   X, LogOut, Tag, Coffee, ChevronRight, CheckCircle, AlertCircle, ImagePlus, History,
-  BookOpen, Star, Dumbbell, Music2,
+  BookOpen, Star, Dumbbell, Music2, Users,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { usePlan } from '../hooks/usePlan'
@@ -20,7 +20,7 @@ function fileToBase64(file) {
   })
 }
 
-export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia, onOpenPatterns, onOpenPracticeHistory }) {
+export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpenBlog, onOpenGuia, onOpenPatterns, onOpenPracticeHistory, onOpenDancers }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { planLabel, isPro, hasHistory } = usePlan()
 
@@ -237,6 +237,20 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
                 <p className="text-white text-sm font-medium">Historial práctica</p>
               </div>
               <ChevronRight size={14} className="text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+            </button>
+          )}
+
+          {onOpenDancers && (
+            <button
+              type="button"
+              onClick={onOpenDancers}
+              className="flex items-center justify-between w-full bg-zinc-800/80 hover:bg-zinc-700 hover:border-zinc-600 border border-zinc-700 rounded-xl px-4 py-3 transition-all group active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-2.5">
+                <Users size={16} className="text-red-400" />
+                <p className="text-white text-sm font-medium">Mis Bailarines</p>
+              </div>
+              <ChevronRight size={14} className="text-zinc-600 group-hover:text-red-400 transition-colors" />
             </button>
           )}
 

@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const ROSTER_LIMIT = 24
+const ROSTER_LIMIT = 64
 
-/**
- * Roster global de bailarines (tabla `competitors`).
- * Ordenado por frecuencia desc, last_danced_at desc.
- */
 export function useRoster() {
   const [roster, setRoster] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,7 +12,7 @@ export function useRoster() {
     setLoading(true)
     const { data, error: err } = await supabase
       .from('competitors')
-      .select('id, name, photo_url, frequency_count, repeat_count, last_danced_at, user_id')
+      .select('id, name, photo_url, frequency_count, repeat_count, last_danced_at, user_id, level, is_active')
       .order('frequency_count', { ascending: false })
       .order('last_danced_at', { ascending: false, nullsFirst: false })
       .limit(ROSTER_LIMIT)
@@ -45,8 +41,32 @@ export function useRoster() {
     return data
   }, [])
 
-  const bumpFrequency = useCallback(async (names) => {
-    if (!Array.isArray(names) || names.length === 0) return
+  const updateDancer = useCallback(async (id, patch) => {
+    const allowed = {}
+    if (patch.name != null) allowed.name = String(patch.name).trim()
+    if (patch.level !== undefined) allowed.level = patch.level  // null = clear level
+    if (patch.is_active !== undefined) allowed.is_active = patch.is_active
+    if (Object.keys(allowed).length === 0) return null
+    const { data, error: err } = await supabase
+      .from('competitors')
+      .update(allowed)
+      .eq('id', id)
+      .select()
+      .single()
+    if (err) { setError(err); return null }
+    setRoster((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)))
+    return data
+  }, [])
+
+  // Accepts { [name]: count } map — increments frequency_count by the per-dancer count.
+  // This makes frequency_count = total rounds danced across all sessions.
+  const bumpFrequency = useCallback(async (countMap) => {
+    const entries = typeof countMap === 'object' && !Array.isArray(countMap)
+      ? Object.entries(countMap)
+      : (Array.isArray(countMap) ? countMap.map((n) => [n, 1]) : [])
+    if (entries.length === 0) return
+
+    const names = entries.map(([n]) => n)
     const { data: rows } = await supabase
       .from('competitors')
       .select('id, name, frequency_count')
@@ -56,13 +76,14 @@ export function useRoster() {
     const now = new Date().toISOString()
 
     await Promise.all(
-      names.map(async (name) => {
+      entries.map(async ([name, count]) => {
+        const delta = Math.max(1, Number(count) || 1)
         const row = existingByLower.get(name.toLowerCase())
         if (row) {
           await supabase
             .from('competitors')
             .update({
-              frequency_count: (row.frequency_count ?? 0) + 1,
+              frequency_count: (row.frequency_count ?? 0) + delta,
               last_danced_at: now,
             })
             .eq('id', row.id)
@@ -70,22 +91,13 @@ export function useRoster() {
           const { data: { user } } = await supabase.auth.getUser()
           await supabase
             .from('competitors')
-            .insert({
-              name,
-              user_id: user?.id ?? null,
-              frequency_count: 1,
-              last_danced_at: now,
-            })
+            .insert({ name, user_id: user?.id ?? null, frequency_count: delta, last_danced_at: now })
         }
       })
     )
     await fetchRoster()
   }, [fetchRoster])
 
-  // Bumps repeat_count for each name in the list.
-  // Called at session end for every dancer who was the "odd-one-out" repeater.
-  // Migration path to Opción B: swap this implementation to write user_dancer_stats.total_repeats
-  // — the caller interface (names[]) and semantics remain the same.
   const bumpRepeatCount = useCallback(async (names) => {
     if (!Array.isArray(names) || names.length === 0) return
     const { data: rows } = await supabase
@@ -104,11 +116,10 @@ export function useRoster() {
             .update({ repeat_count: (row.repeat_count ?? 0) + 1 })
             .eq('id', row.id)
         }
-        // No insert — repeater must already be in competitors (came from roster or bulk)
       })
     )
     await fetchRoster()
   }, [fetchRoster])
 
-  return { roster, loading, error, addDancer, bumpFrequency, bumpRepeatCount, refresh: fetchRoster }
+  return { roster, loading, error, addDancer, updateDancer, bumpFrequency, bumpRepeatCount, refresh: fetchRoster }
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { UserPlus, Check } from 'lucide-react'
 
+const LEVEL_DOT = { beginner: 'bg-emerald-500', intermedio: 'bg-blue-500', avanzado: 'bg-red-500' }
+
 export default function RosterPicker({ roster, selected, onToggle, onAdd }) {
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
@@ -45,6 +47,7 @@ export default function RosterPicker({ roster, selected, onToggle, onAdd }) {
               }`}
             >
               {isSelected && <Check size={11} strokeWidth={3} />}
+              {c.level && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${LEVEL_DOT[c.level]}`} />}
               <span>{c.name}</span>
               {c.frequency_count > 0 && (
                 <span className={`text-[10px] ${isSelected ? 'text-red-400/70' : 'text-zinc-600'}`}>

@@ -13,6 +13,19 @@ import {
 import PracticeRosterEditModal from './PracticeRosterEditModal'
 import DiscardRoundsModal from './DiscardRoundsModal'
 
+const LEVEL_BADGE = {
+  beginner:   { label: 'B', cls: 'text-emerald-400' },
+  intermedio: { label: 'I', cls: 'text-blue-400' },
+  avanzado:   { label: 'A', cls: 'text-red-400' },
+}
+
+function LevelTag({ name, levelOf }) {
+  if (!levelOf) return null
+  const b = LEVEL_BADGE[levelOf[name]]
+  if (!b) return null
+  return <span className={`text-[9px] font-black ${b.cls}`}>{b.label}</span>
+}
+
 function MatchCard({
   match,
   onStartBattle,
@@ -23,6 +36,7 @@ function MatchCard({
   onUpdateMatchNames,
   allMatches,
   competitors,
+  levelOf,
 }) {
   const [editing, setEditing] = useState(false)
   const [da, setDa] = useState('')
@@ -194,8 +208,10 @@ function MatchCard({
         >
           <Clock size={16} className="text-red-500 shrink-0" />
           <div className="min-w-0">
-            <p className="text-white font-semibold truncate">
-              {match.playerA} <span className="text-zinc-500">vs</span> {match.playerB}
+            <p className="text-white font-semibold truncate flex items-center gap-1 flex-wrap">
+              {match.playerA}<LevelTag name={match.playerA} levelOf={levelOf} />
+              <span className="text-zinc-500">vs</span>
+              {match.playerB}<LevelTag name={match.playerB} levelOf={levelOf} />
             </p>
             <p className="text-zinc-400 text-xs">Toca para iniciar batalla</p>
           </div>
@@ -299,6 +315,7 @@ export default function MatchesScreen({
   sessionCompletedPairings = null,
   onUpdateMatchNames = null,
   battleRoundCount = 4,
+  levelOf = null,
 }) {
   const { user } = useAuth()
   const [viewMode, setViewMode] = useState('list')
@@ -413,7 +430,7 @@ export default function MatchesScreen({
     return matches.filter((m) => m.completed && !m.isBye)
   }, [isTournament, sessionCompletedPairings, matches])
 
-  const matchCardProps = { onStartBattle, onQuickClose: handleQuickClose, isTournament, onUpdateMatchNames, allMatches: matches, competitors }
+  const matchCardProps = { onStartBattle, onQuickClose: handleQuickClose, isTournament, onUpdateMatchNames, allMatches: matches, competitors, levelOf }
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-5">

@@ -13,6 +13,7 @@ import GuiaScreen from './components/GuiaScreen'
 import PatternsScreen from './components/PatternsScreen'
 import PracticeHistoryScreen from './components/PracticeHistoryScreen'
 import PracticeRosterRegenerateModal from './components/PracticeRosterRegenerateModal'
+import DancersScreen from './components/DancersScreen'
 import DashboardScreen from './components/DashboardScreen'
 import PublicLiveScreen from './components/PublicLiveScreen'
 import { generateRoundRobin, isRoundRobinFinished } from './utils/roundRobin'
@@ -59,6 +60,7 @@ const SCREENS = {
   PRACTICE_SETUP: 'practice_setup',
   PRACTICE_LIVE: 'practice_live',
   PRACTICE_HISTORY: 'practice_history',
+  DANCERS: 'dancers',
 }
 
 function computeBootState() {
@@ -125,6 +127,7 @@ function AppShell() {
     if (path === '/practice/setup') return SCREENS.PRACTICE_SETUP
     if (path === '/practice/live') return SCREENS.PRACTICE_LIVE
     if (path === '/practice/history' || path === '/practice-history') return SCREENS.PRACTICE_HISTORY
+    if (path === '/dancers') return SCREENS.DANCERS
     if (path === '/dashboard') return SCREENS.DASHBOARD
     if (boot.screen === SCREENS.SETUP) return SCREENS.DASHBOARD
     return boot.screen
@@ -160,7 +163,16 @@ function AppShell() {
     [competitionMode, practiceIterations, matches]
   )
 
-  const { bumpFrequency, bumpRepeatCount } = useRoster()
+  const { roster, bumpFrequency, bumpRepeatCount } = useRoster()
+
+  // levelOf: { [name]: level } — built from roster for level-aware pairing
+  const levelOf = useMemo(() => {
+    const map = {}
+    for (const r of roster) {
+      if (r.level) map[r.name] = r.level
+    }
+    return map
+  }, [roster])
   const { save: savePracticeSession } = usePracticeSession()
 
   const goTo = useCallback((nextScreen, opts = {}) => {
@@ -181,7 +193,7 @@ function AppShell() {
         if (cur === SCREENS.BLOG_POST) return SCREENS.BLOG
         if (cur === SCREENS.PRACTICE_LIVE) return SCREENS.PRACTICE_SETUP
         if (cur === SCREENS.PRACTICE_SETUP) return SCREENS.DASHBOARD
-        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS || cur === SCREENS.PRACTICE_HISTORY) return SCREENS.DASHBOARD
+        if (cur === SCREENS.BLOG || cur === SCREENS.GUIA || cur === SCREENS.PATTERNS || cur === SCREENS.PRACTICE_HISTORY || cur === SCREENS.DANCERS) return SCREENS.DASHBOARD
         return cur
       })
     }
@@ -338,7 +350,7 @@ function AppShell() {
   const handleStartTournament = useCallback((finalCompetitors, selectedTime, repeatCounts = {}, br) => {
     archiveCompletedIfNeeded()
     if (competitionMode === COMPETITION_MODE.practice) {
-      const { matches: generated, stats } = generatePracticeRounds(finalCompetitors, 0, repeatCounts)
+      const { matches: generated, stats } = generatePracticeRounds(finalCompetitors, 0, repeatCounts, levelOf, [])
       setCompetitors(finalCompetitors)
       setRoundTime(selectedTime)
       setMatches(generated)
@@ -357,7 +369,7 @@ function AppShell() {
     setRoundTime(selectedTime)
     setMatches(generated)
     goTo(SCREENS.MATCHES)
-  }, [goTo, archiveCompletedIfNeeded, competitionMode, goToPracticeLive, battleRoundCount])
+  }, [goTo, archiveCompletedIfNeeded, competitionMode, goToPracticeLive, battleRoundCount, levelOf])
 
   const goToMatchList = useCallback(() => {
     if (isTournament) {
@@ -480,7 +492,7 @@ function AppShell() {
     for (const [name, n] of Object.entries(practiceStats.repeats ?? {})) {
       combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
     }
-    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx, combinedRepeatCounts)
+    const { matches: generated, stats } = generatePracticeRounds(competitors, nextIdx, combinedRepeatCounts, levelOf, sessionCompletedPairings)
     setMatches(generated)
     setActiveMatchId(null)
     setPracticeIterations((prev) => {
@@ -496,7 +508,7 @@ function AppShell() {
     setPracticeStats((prev) => mergeStats(prev, stats))
     setCurrentPracticeRound(1)
     goToPracticeLive()
-  }, [competitors, practiceIterations, practiceInitialRepeatCounts, practiceStats.repeats, matches, goToPracticeLive])
+  }, [competitors, practiceIterations, practiceInitialRepeatCounts, practiceStats.repeats, matches, goToPracticeLive, levelOf, sessionCompletedPairings])
 
   const handleNextPracticeRound = useCallback(() => {
     setCurrentPracticeRound((r) => r + 1)
@@ -547,7 +559,7 @@ function AppShell() {
         combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
       }
       const idx = Math.max(0, practiceIterations.length - 1)
-      const { matches: generated, stats } = generatePracticeRounds(newNames, idx, combinedRepeatCounts)
+      const { matches: generated, stats } = generatePracticeRounds(newNames, idx, combinedRepeatCounts, levelOf, sessionCompletedPairings)
       const nextIters = !practiceIterations.length
         ? [{ matches: generated, stats }]
         : [...practiceIterations.slice(0, -1), { matches: generated, stats }]
@@ -558,7 +570,7 @@ function AppShell() {
       setPracticeIterations(nextIters)
       setPracticeStats(recomputeAggregatedStatsFromIterations(nextIters))
     },
-    [practiceInitialRepeatCounts, practiceStats.repeats, practiceIterations]
+    [practiceInitialRepeatCounts, practiceStats.repeats, practiceIterations, levelOf, sessionCompletedPairings]
   )
 
   const handleRegeneratePractice = useCallback(() => {
@@ -567,11 +579,11 @@ function AppShell() {
     for (const [name, n] of Object.entries(practiceStats.repeats ?? {})) {
       combinedRepeatCounts[name] = (combinedRepeatCounts[name] ?? 0) + n
     }
-    const { matches: generated } = generatePracticeRounds(competitors, seed, combinedRepeatCounts)
+    const { matches: generated } = generatePracticeRounds(competitors, seed, combinedRepeatCounts, levelOf, sessionCompletedPairings)
     setMatches(generated)
     setActiveMatchId(null)
     setCurrentPracticeRound(1)
-  }, [competitors, practiceIterations.length, practiceInitialRepeatCounts, practiceStats.repeats])
+  }, [competitors, practiceIterations.length, practiceInitialRepeatCounts, practiceStats.repeats, levelOf, sessionCompletedPairings])
 
   const handleEditPracticeRoster = useCallback(() => {
     goToPracticeSetup()
@@ -602,6 +614,11 @@ function AppShell() {
     setScreen(SCREENS.PRACTICE_HISTORY)
   }, [])
 
+  const goToDancers = useCallback(() => {
+    window.history.pushState({ screen: SCREENS.DANCERS }, '', '/dancers')
+    setScreen(SCREENS.DANCERS)
+  }, [])
+
   const handleFinishPractice = useCallback(async () => {
     const iterations = !practiceIterations.length
       ? practiceIterations
@@ -618,9 +635,9 @@ function AppShell() {
         iterations,
         stats,
       })
-      await bumpFrequency(competitors)
-      // Bump repeat_count for every dancer who was the odd-one-out across all iterations
-      const repeaterNames = practiceIterations
+      // Pass per-dancer appearance counts so frequency_count = real rounds danced
+      await bumpFrequency(stats.appearances ?? {})
+      const repeaterNames = iterations
         .flatMap((it) => it.matches ?? [])
         .filter((m) => m.isRepeat && m.repeaterName)
         .map((m) => m.repeaterName)
@@ -818,6 +835,7 @@ function AppShell() {
             onOpenGuia={() => { setMenuOpen(false); goToGuia() }}
             onOpenPatterns={() => { setMenuOpen(false); goToPatterns() }}
             onOpenPracticeHistory={() => { setMenuOpen(false); goToPracticeHistory() }}
+            onOpenDancers={() => { setMenuOpen(false); goToDancers() }}
           />
         )}
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
@@ -901,6 +919,7 @@ function AppShell() {
               onNextPracticeIteration={handleNextPracticeIteration}
               onFinishPractice={handleFinishPractice}
               onUpdateMatchNames={handleUpdateMatchNames}
+              levelOf={levelOf}
             />
           )}
 
@@ -961,6 +980,10 @@ function AppShell() {
 
           {screen === SCREENS.PRACTICE_HISTORY && (
             <PracticeHistoryScreen onBack={() => { window.history.back() }} />
+          )}
+
+          {screen === SCREENS.DANCERS && (
+            <DancersScreen onBack={() => { window.history.back() }} />
           )}
         </main>
       </div>
