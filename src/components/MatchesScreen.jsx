@@ -37,6 +37,7 @@ function MatchCard({
   allMatches,
   competitors,
   levelOf,
+  battleIndex,
 }) {
   const [editing, setEditing] = useState(false)
   const [da, setDa] = useState('')
@@ -206,7 +207,13 @@ function MatchCard({
           onClick={() => onStartBattle(match.id)}
           className="flex-1 flex items-center gap-3 text-left min-w-0"
         >
-          <Clock size={16} className="text-red-500 shrink-0" />
+          {battleIndex != null ? (
+            <span className="shrink-0 min-w-[1.5rem] h-6 px-1 rounded-md bg-red-500/20 text-red-400 text-[10px] font-black flex items-center justify-center border border-red-500/30">
+              #{battleIndex + 1}
+            </span>
+          ) : (
+            <Clock size={16} className="text-red-500 shrink-0" />
+          )}
           <div className="min-w-0">
             <p className="text-white font-semibold truncate flex items-center gap-1 flex-wrap">
               {match.playerA}<LevelTag name={match.playerA} levelOf={levelOf} />
@@ -449,6 +456,14 @@ export default function MatchesScreen({
               <span className="text-zinc-600"> · Iteración {practiceIterationNumber}</span>
             )}
           </p>
+          {completed.length + pending.length > 0 && (
+            <div className="h-1 w-full max-w-[160px] rounded-full bg-zinc-800 mt-1.5 overflow-hidden">
+              <div
+                className="h-full bg-red-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.round((completed.length / (completed.length + pending.length)) * 100)}%` }}
+              />
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg bg-zinc-800 p-0.5 text-xs font-semibold">
@@ -636,12 +651,13 @@ export default function MatchesScreen({
               <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest">
                 Pendientes ({pending.length})
               </p>
-              {pending.map((match) => (
+              {pending.map((match, idx) => (
                 <MatchCard
                   key={match.id}
                   match={match}
                   expanded={expandedId === match.id}
                   onToggleExpand={() => toggleExpand(match.id)}
+                  battleIndex={idx}
                   {...matchCardProps}
                 />
               ))}
@@ -865,33 +881,45 @@ export default function MatchesScreen({
             onClick={() => setLiveOpen(false)}
             aria-hidden
           />
-          <div className="fixed left-0 right-0 bottom-0 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-md sm:rounded-2xl z-[90] bg-zinc-950 border border-zinc-800 p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <h3 className="text-lg font-black text-white">Vista pública en vivo</h3>
+          <div className="fixed left-0 right-0 bottom-0 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-md sm:rounded-2xl z-[90] bg-zinc-950 border border-zinc-800 p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/15 border border-red-500/30">
+                  <Radio size={16} className="text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">Proyección en vivo</h3>
+                  <p className="text-zinc-500 text-[11px]">Ranking público para el público</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setLiveOpen(false)}
-                className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                className="shrink-0 p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
                 aria-label="Cerrar"
               >
                 <X size={18} />
               </button>
             </div>
-            <p className="text-zinc-500 text-sm mb-4">
+            <p className="text-zinc-400 text-sm mb-5 leading-relaxed">
               Activa la sincronización para que un proyector o el público vean el ranking en casi tiempo real. El enlace no requiere cuenta.
             </p>
-            <label className="flex items-center gap-3 py-2 cursor-pointer">
+            <label className="flex items-center gap-3 p-3 rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors">
               <input
                 type="checkbox"
                 className="w-4 h-4 rounded border-zinc-600 text-red-500 focus:ring-red-500"
                 checked={syncLive}
                 onChange={(e) => setSyncLive(e.target.checked)}
               />
-              <span className="text-white text-sm font-semibold">Sincronizar batallas ahora</span>
+              <div>
+                <span className="text-white text-sm font-semibold block">Sincronizar batallas ahora</span>
+                {syncLive && <span className="text-green-400 text-[11px] font-medium">● En vivo</span>}
+              </div>
             </label>
             {publicLiveId && liveFullUrl && (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-center p-3 bg-white rounded-2xl">
+              <div className="mt-5 space-y-3">
+                <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-widest">Escanear para abrir</p>
+                <div className="flex items-center justify-center p-4 bg-white rounded-2xl">
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(liveFullUrl)}`}
                     width={200}
@@ -904,7 +932,7 @@ export default function MatchesScreen({
                   href={liveFullUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-zinc-700 text-sm font-semibold text-amber-300 hover:bg-zinc-900"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-zinc-700 text-sm font-semibold text-amber-300 hover:bg-zinc-900 transition-colors"
                 >
                   <ExternalLink size={16} />
                   Abrir vista pública
@@ -912,10 +940,14 @@ export default function MatchesScreen({
                 <button
                   type="button"
                   onClick={handleCopyLiveUrl}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-zinc-800 text-sm font-semibold text-white"
+                  className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
+                    copyOk
+                      ? 'bg-green-500/20 border border-green-500/40 text-green-300'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                  }`}
                 >
                   <Copy size={16} />
-                  {copyOk ? 'Copiado' : 'Copiar enlace'}
+                  {copyOk ? '¡Copiado!' : 'Copiar enlace'}
                 </button>
               </div>
             )}

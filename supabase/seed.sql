@@ -2,26 +2,17 @@
 -- ClashPro — Seed de datos iniciales
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Este archivo es idempotente: se puede ejecutar N veces sin error ni duplicados.
--- Usar ON CONFLICT DO NOTHING en todos los inserts.
 --
 -- Cuándo aplicar:
 --   supabase db reset --linked   →  resetea la DB y aplica migrations + seed
 --   O ejecutar manualmente vía Supabase Studio → SQL Editor
 --
--- NO poner lógica de schema aquí. Solo datos iniciales.
+-- Mis bailarines: la función public.seed_roster_for_user (migración) inserta
+-- el roster demo por cuenta. Tras reset, si ya existen perfiles, se rellenan aquí.
+-- Los nuevos registros en profiles disparan el trigger on_profile_seed_roster.
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Competidores de prueba (equipo MVP)
-insert into public.competitors (name) values
-  ('Daniel Alfaro'),
-  ('Daniel Ambriz'),
-  ('William Daniel'),
-  ('Aly'),
-  ('Sahad'),
-  ('Yi'),
-  ('Fer'),
-  ('Mundo')
-on conflict do nothing;
+select public.seed_roster_for_user(id) from public.profiles;
 
 -- Playlists del sistema (Salsanama oficiales)
 insert into public.playlists (name, spotify_uri, spotify_url, is_system) values

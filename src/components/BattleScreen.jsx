@@ -296,9 +296,29 @@ export default function BattleScreen({
           <span className="text-red-500 text-xl">VS</span>{' '}
           {match.playerB}
         </h2>
+        {totalRounds > 1 && status !== 'voting' && (
+          <div className="flex items-center justify-center gap-2 mt-1">
+            {Array.from({ length: totalRounds }, (_, i) => {
+              const isDone = (status === 'between' && i <= betweenAfter) || (status === 'running' && i < roundIndex)
+              const isActive = status === 'running' && i === roundIndex
+              return (
+                <span
+                  key={i}
+                  className={`rounded-full transition-all duration-300 ${
+                    isActive
+                      ? 'w-3 h-3 bg-red-500 shadow-sm shadow-red-500/50'
+                      : isDone
+                        ? 'w-2 h-2 bg-zinc-500'
+                        : 'w-2 h-2 bg-zinc-700'
+                  }`}
+                />
+              )
+            })}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2 w-full max-w-sm mx-auto text-left">
           <div
-            className={`rounded-xl border px-3 py-2 transition-colors ${
+            className={`rounded-xl border px-3 py-2 relative transition-colors ${
               aIsCurrent
                 ? 'border-red-500/70 bg-red-500/10 ring-1 ring-red-500/40'
                 : aIsNext
@@ -308,6 +328,7 @@ export default function BattleScreen({
                     : 'border-zinc-800 bg-zinc-900/50'
             }`}
           >
+            {aIsCurrent && <span className="absolute inset-0 rounded-xl ring-2 ring-red-500/25 animate-pulse pointer-events-none" />}
             <p className="text-[10px] font-black uppercase tracking-widest text-red-400/90">1.º en salir</p>
             <p className="text-sm font-bold text-white leading-tight truncate" title={match.playerA}>
               {match.playerA}
@@ -320,7 +341,7 @@ export default function BattleScreen({
             {showVoting && <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">Listo</p>}
           </div>
           <div
-            className={`rounded-xl border px-3 py-2 transition-colors ${
+            className={`rounded-xl border px-3 py-2 relative transition-colors ${
               showVoting
                 ? 'border-zinc-700 bg-zinc-900/80 opacity-90'
                 : bIsNext
@@ -332,6 +353,7 @@ export default function BattleScreen({
                       : 'border-zinc-800 bg-zinc-900/50'
             }`}
           >
+            {turn2Current && <span className="absolute inset-0 rounded-xl ring-2 ring-amber-500/25 animate-pulse pointer-events-none" />}
             <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/90">2.º en salir</p>
             <p className="text-sm font-bold text-white leading-tight truncate" title={match.playerB}>
               {match.playerB}
@@ -349,7 +371,22 @@ export default function BattleScreen({
             )}
           </div>
         </div>
-        <p className="text-zinc-400 text-sm pt-0.5">{phaseLabel}</p>
+        {status === 'between' ? (
+          <div className="flex flex-col items-center gap-1.5 pt-1">
+            <p className="text-amber-300/90 text-sm font-semibold animate-pulse">{phaseLabel}</p>
+            <div className="flex items-center gap-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 bg-amber-400/70 rounded-full animate-bounce"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-zinc-400 text-sm pt-0.5">{phaseLabel}</p>
+        )}
       </div>
 
       {showTimer && (
@@ -487,42 +524,45 @@ export default function BattleScreen({
           <button
             type="button"
             onClick={() => handleVote('A')}
-            className="w-full flex items-center justify-between bg-zinc-800 hover:bg-blue-600/30 border border-zinc-700 hover:border-blue-500 rounded-xl px-5 py-4 transition-colors"
+            className="w-full flex items-center justify-between bg-zinc-800 hover:bg-blue-600/30 border border-zinc-700 hover:border-blue-500 rounded-2xl px-6 py-5 transition-colors"
           >
             <div className="text-left">
-              <p className="text-xs text-zinc-400 uppercase tracking-widest">Ganador</p>
-              <p className="text-white font-bold text-lg">{match.playerA}</p>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Ganador</p>
+              <p className="text-white font-black text-xl mt-0.5">{match.playerA}</p>
             </div>
-            <div className="flex items-center gap-1 text-blue-400 font-black text-xl">
-              <Trophy size={18} /> 3 pts
+            <div className="flex flex-col items-end gap-0.5 text-blue-400">
+              <Trophy size={20} />
+              <span className="font-black text-sm">3 pts</span>
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => handleVote('B')}
-            className="w-full flex items-center justify-between bg-zinc-800 hover:bg-blue-600/30 border border-zinc-700 hover:border-blue-500 rounded-xl px-5 py-4 transition-colors"
+            className="w-full flex items-center justify-between bg-zinc-800 hover:bg-blue-600/30 border border-zinc-700 hover:border-blue-500 rounded-2xl px-6 py-5 transition-colors"
           >
             <div className="text-left">
-              <p className="text-xs text-zinc-400 uppercase tracking-widest">Ganador</p>
-              <p className="text-white font-bold text-lg">{match.playerB}</p>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Ganador</p>
+              <p className="text-white font-black text-xl mt-0.5">{match.playerB}</p>
             </div>
-            <div className="flex items-center gap-1 text-blue-400 font-black text-xl">
-              <Trophy size={18} /> 3 pts
+            <div className="flex flex-col items-end gap-0.5 text-blue-400">
+              <Trophy size={20} />
+              <span className="font-black text-sm">3 pts</span>
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => handleVote('draw')}
-            className="w-full flex items-center justify-between bg-zinc-800 hover:bg-amber-600/20 border border-zinc-700 hover:border-amber-500 rounded-xl px-5 py-4 transition-colors"
+            className="w-full flex items-center justify-between bg-zinc-800 hover:bg-amber-600/20 border border-zinc-700 hover:border-amber-500 rounded-2xl px-6 py-5 transition-colors"
           >
             <div className="text-left">
-              <p className="text-xs text-zinc-400 uppercase tracking-widest">Resultado</p>
-              <p className="text-white font-bold text-lg">Empate</p>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Resultado</p>
+              <p className="text-white font-black text-xl mt-0.5">Empate</p>
             </div>
-            <div className="flex items-center gap-1 text-amber-400 font-black text-xl">
-              <Minus size={18} /> 1 pt c/u
+            <div className="flex flex-col items-end gap-0.5 text-amber-400">
+              <Minus size={20} />
+              <span className="font-black text-sm">1 pt c/u</span>
             </div>
           </button>
         </div>

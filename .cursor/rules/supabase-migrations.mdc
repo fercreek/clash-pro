@@ -1,0 +1,44 @@
+---
+description: Flujo local → repo → prod para migraciones Supabase (nunca prod directo)
+alwaysApply: true
+---
+
+# Migraciones Supabase: local primero, prod solo vía repo
+
+## Principio
+
+Los cambios de **schema y datos versionados** viven en **`supabase/migrations/`** y **`supabase/seed.sql`**. Se prueban **en local** (o contra un proyecto de staging), entran en **git**, y **solo entonces** se aplican al proyecto de producción **enlazado** con el mismo historial de migraciones. **No** usar el SQL Editor de producción como vía principal para definir schema: eso queda fuera del control de versiones y desincroniza equipos.
+
+## Flujo recomendado
+
+1. **Crear migración** nueva (`npm run db:new` o archivo `YYYYMMDDHHmmss_*.sql` siguiendo `supabase/migrations/TEMPLATE.sql`).
+2. **Probar en local:** `supabase start` (Docker), luego `supabase db reset` **sin** `--linked` contra la instancia local, o revisar con `supabase migration up` en local. Comprobar que la app arranca y las queries críticas funcionan.
+3. **Commit + push** del archivo de migración (y `seed.sql` si aplica) al repositorio.
+4. **Producción:** con el CLI **enlazado al proyecto correcto** (`supabase link`), ejecutar **`npm run db:push`** (equivale a `supabase db push`). Eso aplica **solo** migraciones pendientes registradas en el repo — no “SQL suelto” ad hoc.
+5. **Verificación breve** en Dashboard (tabla/columna o `select` de humo).
+
+## Qué evitar
+
+- Pegar en **prod** bloques grandes de DDL/DML que no existan como migración en el repo (salvo **emergencia** documentada; luego igualar con migración idempotente en el siguiente commit).
+- **Reescribir** migraciones ya aplicadas en remoto: siempre un **archivo nuevo**.
+- Usar `supabase db reset --linked` contra **producción** salvo que sepas que borra datos y es intencional.
+
+## Idempotencia y plantilla
+
+- `IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE`, índices `IF NOT EXISTS`, RLS con `DO $$ … EXCEPTION WHEN duplicate_object`.
+- Datos demo globales: **`seed.sql`**, no lógica pesada de negocio en migraciones salvo excepción justificada.
+
+## `scripts/sql/`
+
+Scripts para **copiar a Studio** (one-off, soporte). No sustituyen el flujo de migraciones para cambios de esquema que deban vivir en git. Si algo se ejecutó solo en prod por urgencia, **replicar** el cambio en una migración nueva idempotente en el repo lo antes posible.
+
+## Scripts npm útiles
+
+- `db:new` — plantilla de migración  
+- `db:push` — aplicar migraciones pendientes al proyecto **linked**  
+- `db:diff` — generar diff contra linked (cuidado: revisar antes de commitear)  
+- `db:reset --linked` — **destructivo**; solo contra el entorno que corresponda
+
+Al editar SQL de Supabase o tocar estos scripts, seguir este flujo y **`TEMPLATE.sql`** en cada migración nueva.
+
+Antes de diseñar o aplicar cambios que afecten tablas o políticas, revisar **`docs/data-model.md`** (§0 canónico `MAYÚSCULAS` ↔ Postgres) y **`docs/supabase-security.md`** (regla `data-model-security.mdc`). Nueva tabla o rename: actualizar §0 y el ER en `data-model.md`.

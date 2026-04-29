@@ -1,40 +1,103 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { pickCanonicalRow, normalizeDancerNameKey } from '../lib/rosterCanonical'
 
 const ROSTER_LIMIT = 64
+const MERGE_FETCH_LIMIT = 500
+const COLS_FULL = 'id, name, photo_url, frequency_count, repeat_count, last_danced_at, user_id, level, is_active, deleted_at'
+const COLS_NO_DELETED = 'id, name, photo_url, frequency_count, repeat_count, last_danced_at, user_id, level, is_active'
+
+function scopeByUser(q, userId) {
+  return q.eq('user_id', userId)
+}
 
 export function useRoster() {
   const [roster, setRoster] = useState([])
+  const rosterRef = useRef([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  useEffect(() => {
+    rosterRef.current = roster
+  }, [roster])
+
   const fetchRoster = useCallback(async () => {
     setLoading(true)
-    const { data, error: err } = await supabase
-      .from('competitors')
-      .select('id, name, photo_url, frequency_count, repeat_count, last_danced_at, user_id, level, is_active')
+    setError(null)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) {
+      setRoster([])
+      setLoading(false)
+      return
+    }
+    let res = await scopeByUser(
+      supabase.from('competitors').select(COLS_FULL),
+      user.id,
+    )
       .order('frequency_count', { ascending: false })
       .order('last_danced_at', { ascending: false, nullsFirst: false })
       .limit(ROSTER_LIMIT)
-    if (err) setError(err)
-    else setRoster(data ?? [])
+    const missingDeleted =
+      res.error && /deleted_at/i.test(String(res.error.message || ''))
+    if (missingDeleted) {
+      res = await scopeByUser(
+        supabase.from('competitors').select(COLS_NO_DELETED),
+        user.id,
+      )
+        .order('frequency_count', { ascending: false })
+        .order('last_danced_at', { ascending: false, nullsFirst: false })
+        .limit(ROSTER_LIMIT)
+    }
+    if (res.error) {
+      setError(res.error)
+      setRoster([])
+    } else {
+      setRoster(res.data ?? [])
+    }
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchRoster() }, [fetchRoster])
+  useEffect(() => {
+    fetchRoster()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchRoster()
+    })
+    return () => subscription.unsubscribe()
+  }, [fetchRoster])
 
   const addDancer = useCallback(async (name) => {
     const trimmed = name.trim()
     if (!trimmed) return null
     const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return null
+    let probe = await scopeByUser(
+      supabase.from('competitors').select(COLS_FULL),
+      user.id,
+    ).limit(MERGE_FETCH_LIMIT)
+    if (probe.error && /deleted_at/i.test(String(probe.error.message || ''))) {
+      probe = await scopeByUser(
+        supabase.from('competitors').select(COLS_NO_DELETED),
+        user.id,
+      ).limit(MERGE_FETCH_LIMIT)
+    }
+    if (!probe.error) {
+      const want = normalizeDancerNameKey(trimmed)
+      const hit = (probe.data ?? []).find((r) => normalizeDancerNameKey(r.name) === want)
+      if (hit) {
+        setError(null)
+        setRoster((prev) => (prev.some((p) => p.id === hit.id) ? prev : [...prev, hit]))
+        return hit
+      }
+    }
     const { data, error: err } = await supabase
       .from('competitors')
-      .insert({ name: trimmed, user_id: user?.id ?? null })
+      .insert({ name: trimmed, user_id: user.id })
       .select()
       .single()
     if (err) { setError(err); return null }
     setRoster((prev) => {
-      const exists = prev.find((c) => c.name.toLowerCase() === trimmed.toLowerCase())
+      const want = normalizeDancerNameKey(trimmed)
+      const exists = prev.find((c) => normalizeDancerNameKey(c.name) === want)
       if (exists) return prev
       return [...prev, data]
     })
@@ -44,9 +107,23 @@ export function useRoster() {
   const updateDancer = useCallback(async (id, patch) => {
     const allowed = {}
     if (patch.name != null) allowed.name = String(patch.name).trim()
-    if (patch.level !== undefined) allowed.level = patch.level  // null = clear level
+    if (patch.level !== undefined) allowed.level = patch.level
     if (patch.is_active !== undefined) allowed.is_active = patch.is_active
+    if (patch.deleted_at !== undefined) allowed.deleted_at = patch.deleted_at
     if (Object.keys(allowed).length === 0) return null
+    if (allowed.name != null) {
+      const nk = normalizeDancerNameKey(allowed.name)
+      if (nk) {
+        const clash = rosterRef.current.some(
+          (r) => r.id !== id && !r.deleted_at && normalizeDancerNameKey(r.name) === nk,
+        )
+        if (clash) {
+          setError({ message: 'Ya hay otra fila activa con ese nombre. Usa otro nombre, archiva la otra o bórrala.' })
+          return null
+        }
+      }
+    }
+    setError(null)
     const { data, error: err } = await supabase
       .from('competitors')
       .update(allowed)
@@ -58,27 +135,33 @@ export function useRoster() {
     return data
   }, [])
 
-  // Accepts { [name]: count } map — increments frequency_count by the per-dancer count.
-  // This makes frequency_count = total rounds danced across all sessions.
   const bumpFrequency = useCallback(async (countMap) => {
     const entries = typeof countMap === 'object' && !Array.isArray(countMap)
       ? Object.entries(countMap)
       : (Array.isArray(countMap) ? countMap.map((n) => [n, 1]) : [])
     if (entries.length === 0) return
 
-    const names = entries.map(([n]) => n)
-    const { data: rows } = await supabase
-      .from('competitors')
-      .select('id, name, frequency_count')
-      .in('name', names)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return
 
-    const existingByLower = new Map((rows ?? []).map((r) => [r.name.toLowerCase(), r]))
+    const names = entries.map(([n]) => n)
+    const { data: rows } = await scopeByUser(
+      supabase.from('competitors').select('id, name, frequency_count'),
+      user.id,
+    ).in('name', names)
+
+    const existingByLower = new Map()
+    for (const r of rows ?? []) {
+      const k = normalizeDancerNameKey(r.name)
+      const cur = existingByLower.get(k)
+      existingByLower.set(k, cur ? pickCanonicalRow(cur, r, user.id) : r)
+    }
     const now = new Date().toISOString()
 
     await Promise.all(
       entries.map(async ([name, count]) => {
         const delta = Math.max(1, Number(count) || 1)
-        const row = existingByLower.get(name.toLowerCase())
+        const row = existingByLower.get(normalizeDancerNameKey(name))
         if (row) {
           await supabase
             .from('competitors')
@@ -88,10 +171,9 @@ export function useRoster() {
             })
             .eq('id', row.id)
         } else {
-          const { data: { user } } = await supabase.auth.getUser()
           await supabase
             .from('competitors')
-            .insert({ name, user_id: user?.id ?? null, frequency_count: delta, last_danced_at: now })
+            .insert({ name, user_id: user.id, frequency_count: delta, last_danced_at: now })
         }
       })
     )
@@ -100,16 +182,24 @@ export function useRoster() {
 
   const bumpRepeatCount = useCallback(async (names) => {
     if (!Array.isArray(names) || names.length === 0) return
-    const { data: rows } = await supabase
-      .from('competitors')
-      .select('id, name, repeat_count')
-      .in('name', names)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return
 
-    const existingByLower = new Map((rows ?? []).map((r) => [r.name.toLowerCase(), r]))
+    const { data: rows } = await scopeByUser(
+      supabase.from('competitors').select('id, name, repeat_count'),
+      user.id,
+    ).in('name', names)
+
+    const existingByLower = new Map()
+    for (const r of rows ?? []) {
+      const k = normalizeDancerNameKey(r.name)
+      const cur = existingByLower.get(k)
+      existingByLower.set(k, cur ? pickCanonicalRow(cur, r, user.id) : r)
+    }
 
     await Promise.all(
       names.map(async (name) => {
-        const row = existingByLower.get(name.toLowerCase())
+        const row = existingByLower.get(normalizeDancerNameKey(name))
         if (row) {
           await supabase
             .from('competitors')
@@ -121,5 +211,89 @@ export function useRoster() {
     await fetchRoster()
   }, [fetchRoster])
 
-  return { roster, loading, error, addDancer, updateDancer, bumpFrequency, bumpRepeatCount, refresh: fetchRoster }
+  const deleteDancerPermanent = useCallback(async (id) => {
+    const { error: err } = await supabase.from('competitors').delete().eq('id', id)
+    if (err) {
+      setError(err)
+      return false
+    }
+    setRoster((prev) => prev.filter((r) => r.id !== id))
+    setError(null)
+    return true
+  }, [])
+
+  const mergeDuplicateCompetitorsByName = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return { removed: 0, ok: true }
+    const runSelect = async (cols) =>
+      scopeByUser(supabase.from('competitors').select(cols), user.id).order('id').limit(MERGE_FETCH_LIMIT)
+    let res = await runSelect(COLS_FULL)
+    if (res.error && /deleted_at/i.test(String(res.error.message || ''))) {
+      res = await runSelect(COLS_NO_DELETED)
+    }
+    if (res.error) {
+      setError(res.error)
+      return { removed: 0, ok: false }
+    }
+    const rows = res.data ?? []
+    const groups = new Map()
+    for (const r of rows) {
+      const k = normalizeDancerNameKey(r.name)
+      if (!k) continue
+      if (!groups.has(k)) groups.set(k, [])
+      groups.get(k).push(r)
+    }
+    let removed = 0
+    for (const list of groups.values()) {
+      if (list.length < 2) continue
+      const keyNorm = normalizeDancerNameKey(list[0].name)
+      if (!list.every((x) => normalizeDancerNameKey(x.name) === keyNorm)) continue
+      let keeper = list[0]
+      for (let i = 1; i < list.length; i++) {
+        keeper = pickCanonicalRow(keeper, list[i], user.id)
+      }
+      const others = list.filter((x) => x.id !== keeper.id)
+      const sumF = list.reduce((s, x) => s + (x.frequency_count ?? 0), 0)
+      const sumR = list.reduce((s, x) => s + (x.repeat_count ?? 0), 0)
+      const lasts = list.map((x) => x.last_danced_at).filter(Boolean).sort()
+      const maxLast = lasts.length ? lasts[lasts.length - 1] : null
+      const { error: upErr } = await supabase
+        .from('competitors')
+        .update({
+          frequency_count: sumF,
+          repeat_count: sumR,
+          ...(maxLast ? { last_danced_at: maxLast } : {}),
+        })
+        .eq('id', keeper.id)
+      if (upErr) {
+        setError(upErr)
+        return { removed, ok: false }
+      }
+      const ids = others.map((o) => o.id)
+      if (ids.length) {
+        const { error: delErr } = await supabase.from('competitors').delete().in('id', ids)
+        if (delErr) {
+          setError(delErr)
+          return { removed, ok: false }
+        }
+        removed += ids.length
+      }
+    }
+    setError(null)
+    await fetchRoster()
+    return { removed, ok: true }
+  }, [fetchRoster])
+
+  return {
+    roster,
+    loading,
+    error,
+    addDancer,
+    updateDancer,
+    bumpFrequency,
+    bumpRepeatCount,
+    deleteDancerPermanent,
+    mergeDuplicateCompetitorsByName,
+    refresh: fetchRoster,
+  }
 }

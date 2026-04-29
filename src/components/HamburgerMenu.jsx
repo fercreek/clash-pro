@@ -240,7 +240,7 @@ export default function HamburgerMenu({ onClose, onOpenTournamentHistory, onOpen
             </button>
           )}
 
-          {onOpenDancers && (
+          {user && onOpenDancers && (
             <button
               type="button"
               onClick={onOpenDancers}

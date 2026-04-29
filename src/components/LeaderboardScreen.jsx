@@ -66,15 +66,28 @@ function Streak({ n }) {
 }
 
 function PodiumBlock({ rank, name, pts, color, height, idx, champion }) {
+  const width = champion ? 108 : 96
   return (
-    <div className="flex flex-col items-center" style={{ width: 96 }}>
+    <div className="flex flex-col items-center" style={{ width }}>
       <div className="relative mb-2">
         {champion && (
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-            <Trophy size={20} color="#fbbf24" strokeWidth={2.5} />
+          <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+            <Trophy size={22} color="#fbbf24" strokeWidth={2.5} />
           </div>
         )}
-        <Avatar name={name} size={champion ? 60 : 48} idx={idx} />
+        <div
+          className="relative rounded-full"
+          style={
+            champion
+              ? {
+                  boxShadow: '0 0 0 2.5px #fbbf24, 0 0 16px rgba(251,191,36,0.35)',
+                  animation: 'pulse 2.5s cubic-bezier(0.4,0,0.6,1) infinite',
+                }
+              : {}
+          }
+        >
+          <Avatar name={name} size={champion ? 64 : 48} idx={idx} />
+        </div>
         <div
           className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center font-black text-[11px]"
           style={{ width: 20, height: 20, background: color, color: '#18181b', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}
@@ -96,6 +109,12 @@ function PodiumBlock({ rank, name, pts, color, height, idx, champion }) {
         }}
       >
         <div className="absolute inset-x-0 top-0 h-[2px]" style={{ background: color }} />
+        {champion && (
+          <div
+            className="absolute inset-x-0 top-0 h-[2px] blur-sm"
+            style={{ background: color, opacity: 0.7 }}
+          />
+        )}
         <div
           className="absolute bottom-3 left-1/2 -translate-x-1/2 font-black tabular-nums"
           style={{ color: `${color}33`, fontSize: 40, lineHeight: 1, letterSpacing: '-0.04em' }}
@@ -210,13 +229,11 @@ export default function LeaderboardScreen({
   return (
     <div className="min-h-full bg-zinc-950 text-white">
 
-      {/* amber glow from top */}
       <div
         className="absolute inset-x-0 top-0 h-64 pointer-events-none"
         style={{ background: 'radial-gradient(70% 50% at 50% 0%, rgba(251,191,36,0.18), transparent 70%)' }}
       />
 
-      {/* header */}
       <div className="relative px-5 pt-5 pb-3 flex items-center justify-between">
         {showBackButton ? (
         <button
@@ -242,18 +259,20 @@ export default function LeaderboardScreen({
             type="button"
             onClick={handleShareImage}
             disabled={imageBusy}
-            className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            className="h-10 px-2.5 rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center text-amber-400 hover:bg-zinc-800 transition-colors disabled:opacity-50 gap-0.5"
             title="Imagen Stories (1080×1920)"
           >
-            <ImageDown size={16} />
+            <ImageDown size={14} />
+            <span className="text-[8px] font-black uppercase tracking-wide leading-none">Stories</span>
           </button>
           <button
             type="button"
             onClick={handleWhatsApp}
-            className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-green-400 hover:bg-zinc-800 transition-colors"
-            title="WhatsApp"
+            className="h-10 px-2.5 rounded-xl bg-green-500/20 border border-green-500/40 flex flex-col items-center justify-center text-green-400 hover:bg-green-500/30 transition-colors gap-0.5"
+            title="Enviar por WhatsApp"
           >
-            <MessageCircle size={16} />
+            <MessageCircle size={14} />
+            <span className="text-[8px] font-black uppercase tracking-wide leading-none">WA</span>
           </button>
           <button
             type="button"
@@ -266,7 +285,6 @@ export default function LeaderboardScreen({
         </div>
       </div>
 
-      {/* champion name */}
       {first && (
         <div className="relative px-5 pt-2 pb-1 text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400/80 mb-1">Campeón</p>
@@ -278,7 +296,6 @@ export default function LeaderboardScreen({
         </div>
       )}
 
-      {/* podium */}
       {leaderboard.length >= 2 && (
         <div className="relative px-4 pt-8 pb-4">
           <div className="flex items-end justify-center gap-2">
@@ -295,14 +312,13 @@ export default function LeaderboardScreen({
         </div>
       )}
 
-      {/* rest of ranking */}
       {rest.length > 0 && (
-        <div className="px-5 pt-4 pb-2">
-          <div className="flex items-center gap-3 mb-3">
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center gap-3 mb-2">
             <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">Resto del ranking</p>
             <div className="flex-1 h-px bg-zinc-900" />
           </div>
-          <div className="flex flex-col">
+          <div className="rounded-xl border border-zinc-900 overflow-hidden">
             {rest.map((e, i) => {
               const rank = i + 4
               const stat = extStats.find((s) => s.name === e.name)
@@ -310,22 +326,32 @@ export default function LeaderboardScreen({
               return (
                 <div
                   key={e.name}
-                  className={`flex items-center gap-3 py-3 ${i < rest.length - 1 ? 'border-b border-zinc-900' : ''}`}
+                  className={`flex items-center gap-3 px-3 py-3.5 hover:bg-zinc-900/70 transition-colors ${i < rest.length - 1 ? 'border-b border-zinc-900' : ''}`}
                 >
-                  <div className="w-8 text-center">
-                    <span className="font-black text-lg tabular-nums" style={{ color: rankColor }}>{rank}</span>
+                  <div className="w-7 text-center shrink-0">
+                    <span className="font-black text-base tabular-nums" style={{ color: rankColor }}>{rank}</span>
                   </div>
                   <Avatar name={e.name} size={38} idx={rank - 1} />
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-bold text-sm truncate leading-tight">{e.name}</p>
                     {stat && stat.played > 0 && (
-                      <p className="text-zinc-500 text-[11px]">
-                        {stat.wins}V · {stat.losses}D · {stat.draws}E{' '}
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-green-500/15 text-green-400 text-[10px] font-black leading-none">
+                          {stat.wins}V
+                        </span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-400 text-[10px] font-black leading-none">
+                          {stat.losses}D
+                        </span>
+                        {stat.draws > 0 && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-zinc-700/50 text-zinc-400 text-[10px] font-black leading-none">
+                            {stat.draws}E
+                          </span>
+                        )}
                         <Streak n={stat.currentStreak} />
-                      </p>
+                      </div>
                     )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="text-white font-black text-base tabular-nums leading-none">{e.points}</p>
                     <p className="text-zinc-600 text-[9px] uppercase tracking-wider font-black">pts</p>
                   </div>
@@ -336,8 +362,7 @@ export default function LeaderboardScreen({
         </div>
       )}
 
-      {/* copy button */}
-      <div className="px-5 pt-2 pb-2">
+      <div className="px-5 pt-3 pb-2">
         <button
           type="button"
           onClick={handleCopy}
@@ -348,7 +373,6 @@ export default function LeaderboardScreen({
         </button>
       </div>
 
-      {/* share + reset */}
       <div className="px-5 pt-2 pb-8">
         <button
           type="button"

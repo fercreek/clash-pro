@@ -1,0 +1,14 @@
+---
+description: Antes de cambios de datos o Supabase, consultar docs/data-model.md y docs/supabase-security.md
+alwaysApply: true
+---
+
+# Modelo de datos y seguridad
+
+Si el trabajo toca **tablas Postgres**, **RLS**, **migraciones** (`supabase/migrations/`), **hooks que llamen a Supabase**, o **nuevas pantallas con persistencia**:
+
+1. Leer **`docs/data-model.md`**: §0 **nombres canónicos en MAYÚSCULAS_SNAKE** (equivalente 1:1 a tablas Postgres en minúsculas), ER, matriz pantalla → datos. En issues y descripciones de PR, preferir el canónico; en código y SQL, identificadores Postgres reales.
+2. Leer **`docs/supabase-security.md`** (RLS, orden de migraciones, audit npm).
+3. Tras el cambio, **actualizar** esos docs si el modelo o las políticas cambian; si aparece entidad nueva, añadir fila en la tabla de equivalencias del §0 de `data-model.md`.
+
+No definir schema solo en el SQL Editor de producción sin migración en el repo (ver regla `supabase-migrations.mdc`).

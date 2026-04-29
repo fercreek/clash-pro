@@ -34,6 +34,7 @@ import { useRoster } from './hooks/useRoster'
 import { usePracticeSession } from './hooks/usePracticeSession'
 import { loadState, saveState, clearState, normalizeHydratedScreen } from './utils/persist'
 import { useAuth } from './hooks/useAuth'
+import { pickCanonicalRow, normalizeDancerNameKey } from './lib/rosterCanonical'
 import { usePlan } from './hooks/usePlan'
 import { CompetitionModeProvider } from './hooks/useMode'
 import { supabase } from './lib/supabase'
@@ -167,12 +168,21 @@ function AppShell() {
 
   // levelOf: { [name]: level } — built from roster for level-aware pairing
   const levelOf = useMemo(() => {
-    const map = {}
+    const byLower = new Map()
     for (const r of roster) {
-      if (r.level) map[r.name] = r.level
+      if (!r.level) continue
+      const k = normalizeDancerNameKey(r.name)
+      if (!k) continue
+      const cur = byLower.get(k)
+      byLower.set(k, cur ? pickCanonicalRow(cur, r, user?.id) : r)
+    }
+    const map = {}
+    for (const r of byLower.values()) {
+      map[r.name] = r.level
+      map[normalizeDancerNameKey(r.name)] = r.level
     }
     return map
-  }, [roster])
+  }, [roster, user?.id])
   const { save: savePracticeSession } = usePracticeSession()
 
   const goTo = useCallback((nextScreen, opts = {}) => {
@@ -269,6 +279,7 @@ function AppShell() {
     supabase
       .from('competitors')
       .select('id, name, photo_url, is_active')
+      .eq('user_id', user.id)
       .order('name')
       .then(({ data }) => {
         if (data?.length) {
@@ -774,6 +785,17 @@ function AppShell() {
               >
                 Historial
               </button>
+              <button
+                type="button"
+                onClick={goToDancers}
+                className={`shrink-0 px-1.5 py-1 rounded-md transition-colors whitespace-nowrap ${
+                  screen === SCREENS.DANCERS
+                    ? 'text-white bg-zinc-800'
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/70'
+                }`}
+              >
+                Bailarines
+              </button>
             </nav>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -835,7 +857,7 @@ function AppShell() {
             onOpenGuia={() => { setMenuOpen(false); goToGuia() }}
             onOpenPatterns={() => { setMenuOpen(false); goToPatterns() }}
             onOpenPracticeHistory={() => { setMenuOpen(false); goToPracticeHistory() }}
-            onOpenDancers={() => { setMenuOpen(false); goToDancers() }}
+            onOpenDancers={user ? () => { setMenuOpen(false); goToDancers() } : undefined}
           />
         )}
         {historyOpen && <TournamentHistoryModal onClose={() => setHistoryOpen(false)} />}
@@ -862,6 +884,8 @@ function AppShell() {
               onOpenPatterns={() => goToPatterns()}
               onOpenGuia={() => goToGuia()}
               onOpenBlog={() => goToBlog()}
+              onOpenHistory={() => setHistoryOpen(true)}
+              onOpenDancers={user ? () => goToDancers() : null}
             />
           )}
 
@@ -878,6 +902,7 @@ function AppShell() {
               isResumingPractice={screen === SCREENS.PRACTICE_SETUP && practiceIterations.length > 0}
               sessionStats={screen === SCREENS.PRACTICE_SETUP ? sessionDanceCounts : null}
               onOpenPromoMenu={() => setMenuOpen(true)}
+              onOpenDancersTable={() => goToDancers()}
             />
           )}
 

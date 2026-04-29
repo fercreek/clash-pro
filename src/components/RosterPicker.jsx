@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { UserPlus, Check } from 'lucide-react'
+import { UserPlus, Check, Pencil } from 'lucide-react'
 
 const LEVEL_DOT = { beginner: 'bg-emerald-500', intermedio: 'bg-blue-500', avanzado: 'bg-red-500' }
 
-export default function RosterPicker({ roster, selected, onToggle, onAdd }) {
+export default function RosterPicker({ roster, selected, onToggle, onAdd, onEditMember }) {
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
 
@@ -36,25 +36,40 @@ export default function RosterPicker({ roster, selected, onToggle, onAdd }) {
         {roster.map((c) => {
           const isSelected = selectedSet.has(c.name.toLowerCase())
           return (
-            <button
-              key={c.id ?? c.name}
-              type="button"
-              onClick={() => onToggle(c.name)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
-                isSelected
-                  ? 'bg-red-500/10 border-red-500/40 text-red-300'
-                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700'
-              }`}
-            >
-              {isSelected && <Check size={11} strokeWidth={3} />}
-              {c.level && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${LEVEL_DOT[c.level]}`} />}
-              <span>{c.name}</span>
-              {c.frequency_count > 0 && (
-                <span className={`text-[10px] ${isSelected ? 'text-red-400/70' : 'text-zinc-600'}`}>
-                  ×{c.frequency_count}
-                </span>
+            <span key={c.id ?? c.name} className="inline-flex items-stretch rounded-xl overflow-hidden border border-zinc-800/80">
+              <button
+                type="button"
+                onClick={() => onToggle(c.name)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors border-0 ${
+                  isSelected
+                    ? 'bg-red-500/10 text-red-300'
+                    : 'bg-zinc-900/60 text-zinc-400 hover:bg-zinc-900'
+                }`}
+              >
+                {isSelected && <Check size={11} strokeWidth={3} />}
+                {c.level && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${LEVEL_DOT[c.level]}`} />}
+                <span className="max-w-[7.5rem] truncate">{c.name}</span>
+                {c.frequency_count > 0 && (
+                  <span className={`text-[10px] tabular-nums ${isSelected ? 'text-red-400/70' : 'text-zinc-600'}`}>
+                    ×{c.frequency_count}
+                  </span>
+                )}
+              </button>
+              {onEditMember && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onEditMember(c)
+                  }}
+                  className="px-1.5 bg-zinc-800/90 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 border-l border-zinc-800/80 transition-colors"
+                  title="Editar perfil"
+                >
+                  <Pencil size={11} strokeWidth={2.5} />
+                </button>
               )}
-            </button>
+            </span>
           )
         })}
 
