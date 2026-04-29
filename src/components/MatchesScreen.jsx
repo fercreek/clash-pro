@@ -11,6 +11,7 @@ import {
   upsertTournamentPublicSnapshot,
 } from '../lib/tournamentLive'
 import PracticeRosterEditModal from './PracticeRosterEditModal'
+import DiscardRoundsModal from './DiscardRoundsModal'
 
 function MatchCard({
   match,
@@ -303,6 +304,7 @@ export default function MatchesScreen({
   const [viewMode, setViewMode] = useState('list')
   const [expandedId, setExpandedId] = useState(null)
   const [rosterOpen, setRosterOpen] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
   const [liveOpen, setLiveOpen] = useState(false)
   const [syncLive, setSyncLive] = useState(false)
   const [publicLiveId, setPublicLiveId] = useState(() => getStoredLivePublicId() || null)
@@ -491,7 +493,7 @@ export default function MatchesScreen({
           )}
           <button
             type="button"
-            onClick={isTournament ? onReset : onRegenerate}
+            onClick={isTournament ? onReset : () => setDiscardOpen(true)}
             className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
             title={isTournament ? 'Reiniciar torneo' : 'Regenerar rondas'}
           >
@@ -546,12 +548,20 @@ export default function MatchesScreen({
           open={rosterOpen}
           onClose={() => setRosterOpen(false)}
           initialNames={competitors}
+          sessionStats={sessionDanceCounts}
+          sessionPairings={sessionCompletedPairings}
           onApply={(r) => {
             if (!r.ok) return
             return onCommitPracticeRoster(r.names)
           }}
         />
       )}
+
+      <DiscardRoundsModal
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onConfirm={() => onRegenerate?.()}
+      />
 
       {showMini && completed.length > 0 && (
         <div className="bg-zinc-900 rounded-xl p-3 space-y-1">
@@ -568,24 +578,39 @@ export default function MatchesScreen({
         </div>
       )}
 
-      {!isTournament && practiceAppearances && Object.keys(practiceAppearances).length > 0 && (
-        <div className="bg-zinc-900 rounded-xl p-3">
-          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-2">
-            Bailarines
-          </p>
-          <div className="space-y-1">
-            {Object.entries(practiceAppearances)
-              .sort((a, b) => b[1] - a[1])
-              .map(([name, count], i) => (
+      {!isTournament && practiceAppearances && Object.keys(practiceAppearances).length > 0 && (() => {
+        const entries = Object.entries(practiceAppearances).sort((a, b) => b[1] - a[1])
+        const maxCount = entries[0]?.[1] ?? 1
+        const minCount = entries[entries.length - 1]?.[1] ?? 0
+        const isBalanced = maxCount - minCount <= 1
+        return (
+          <div className="bg-zinc-900 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest">Apariciones</p>
+              <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                isBalanced ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
+              }`}>
+                {isBalanced ? 'Balanceado' : `+${maxCount - minCount} dif`}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {entries.map(([name, count], i) => (
                 <div key={name} className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-500 w-4">{i + 1}</span>
-                  <span className="flex-1 text-sm text-white font-medium truncate">{name}</span>
-                  <span className="text-sm font-bold text-red-400">{count}</span>
+                  <span className="text-xs text-zinc-600 w-4 shrink-0">{i + 1}</span>
+                  <span className="text-sm text-white font-medium truncate w-24 shrink-0">{name}</span>
+                  <div className="flex-1 bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="h-full bg-red-500 rounded-full transition-all"
+                      style={{ width: `${(count / maxCount) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-black text-red-400 tabular-nums w-5 text-right shrink-0">{count}</span>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {viewMode === 'list' && (
         <>

@@ -17,6 +17,9 @@ export default function SetupScreen({
   battleRoundCount,
   setBattleRoundCount,
   onStart,
+  onResume,
+  isResumingPractice = false,
+  sessionStats = null,
   onOpenPromoMenu,
 }) {
   const { isFree, maxCompetitors } = usePlan()
@@ -109,9 +112,29 @@ export default function SetupScreen({
             {isTournament ? 'Competición' : 'Práctica libre'}
           </p>
           <h1 className="text-[28px] font-black tracking-tight text-white leading-tight">
-            {isTournament ? 'Nuevo torneo' : 'Nueva sesión'}
+            {isTournament ? 'Nuevo torneo' : isResumingPractice ? 'Sesión activa' : 'Nueva sesión'}
           </h1>
         </div>
+
+        {/* Session stats banner — shown when resuming a practice session */}
+        {isResumingPractice && sessionStats && Object.keys(sessionStats).length > 0 && (
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 mb-1">
+              <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">Esta sesión</p>
+              <div className="flex-1 h-px bg-zinc-900" />
+            </div>
+            <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl px-4 py-3 flex flex-wrap gap-x-4 gap-y-1">
+              {Object.entries(sessionStats)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, count]) => (
+                  <div key={name} className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-sm text-white font-medium truncate max-w-[100px]">{name}</span>
+                    <span className="text-xs font-black text-red-400 tabular-nums">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </section>
+        )}
 
         {/* Mode selector */}
         <section className="flex flex-col gap-2">
@@ -331,17 +354,41 @@ export default function SetupScreen({
         </section>
 
         {/* CTA */}
-        <button
-          type="button"
-          onClick={() =>
-            onStart(competitors, roundTime, repeatCounts, isTournament ? battleRoundCount : undefined)
-          }
-          disabled={!canStart}
-          className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-black text-base tracking-tight transition-colors"
-        >
-          <Swords size={18} strokeWidth={2.5} />
-          {isTournament ? 'GENERAR TORNEO' : 'ARMAR RONDAS'}
-        </button>
+        {isResumingPractice ? (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => onResume?.(competitors, roundTime)}
+              disabled={!canStart}
+              className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-black text-base tracking-tight transition-colors"
+            >
+              <Swords size={18} strokeWidth={2.5} />
+              REANUDAR SESIÓN
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onStart(competitors, roundTime, repeatCounts)
+              }
+              disabled={!canStart}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-bold text-sm text-zinc-400 tracking-tight transition-colors"
+            >
+              Nueva sesión (descarta historial)
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              onStart(competitors, roundTime, repeatCounts, isTournament ? battleRoundCount : undefined)
+            }
+            disabled={!canStart}
+            className="w-full flex items-center justify-center gap-2 py-4 bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-2xl font-black text-base tracking-tight transition-colors"
+          >
+            <Swords size={18} strokeWidth={2.5} />
+            {isTournament ? 'GENERAR TORNEO' : 'ARMAR RONDAS'}
+          </button>
+        )}
 
         <p className="text-zinc-700 text-xs text-center">Made with 🔥 &amp; ❤️ for Salsanamá</p>
 

@@ -126,7 +126,7 @@ function AppShell() {
     if (path === '/practice/live') return SCREENS.PRACTICE_LIVE
     if (path === '/practice/history' || path === '/practice-history') return SCREENS.PRACTICE_HISTORY
     if (path === '/dashboard') return SCREENS.DASHBOARD
-    if (boot.screen === SCREENS.SETUP || boot.screen === SCREENS.PRACTICE_SETUP) return SCREENS.DASHBOARD
+    if (boot.screen === SCREENS.SETUP) return SCREENS.DASHBOARD
     return boot.screen
   })
   const [competitors, setCompetitors] = useState(boot.competitors)
@@ -135,13 +135,11 @@ function AppShell() {
   const [matches, setMatches] = useState(boot.matches)
   const [activeMatchId, setActiveMatchId] = useState(boot.activeMatchId)
   const [competitionMode, setCompetitionMode] = useState(boot.competitionMode)
-  const [practiceIterations, setPracticeIterations] = useState([])
-  const [practiceStats, setPracticeStats] = useState({ appearances: {}, repeats: {}, pairs: [] })
+  const [practiceIterations, setPracticeIterations] = useState(boot.practiceIterations ?? [])
+  const [practiceStats, setPracticeStats] = useState(boot.practiceStats ?? { appearances: {}, repeats: {}, pairs: [] })
   const [practiceStartedAt, setPracticeStartedAt] = useState(null)
   const [currentPracticeRound, setCurrentPracticeRound] = useState(1)
-  // DB repeat_count snapshot at session start — combined with in-session repeats
-  // for fair repeater distribution across iterations.
-  const [practiceInitialRepeatCounts, setPracticeInitialRepeatCounts] = useState({})
+  const [practiceInitialRepeatCounts, setPracticeInitialRepeatCounts] = useState(boot.practiceInitialRepeatCounts ?? {})
   const [practiceRegenerateDraft, setPracticeRegenerateDraft] = useState(null)
 
   const isTournament = competitionMode === COMPETITION_MODE.tournament
@@ -268,8 +266,26 @@ function AppShell() {
   }, [user, screen])
 
   useEffect(() => {
-    saveState({ screen, competitors, roundTime, battleRoundCount, matches, activeMatchId, competitionMode })
-  }, [screen, competitors, roundTime, battleRoundCount, matches, activeMatchId, competitionMode])
+    // Sync current matches into last iteration slot before saving so reload restores full state.
+    const itersToSave = competitionMode === COMPETITION_MODE.practice && practiceIterations.length > 0
+      ? [
+          ...practiceIterations.slice(0, -1),
+          { ...practiceIterations[practiceIterations.length - 1], matches },
+        ]
+      : practiceIterations
+    saveState({
+      screen,
+      competitors,
+      roundTime,
+      battleRoundCount,
+      matches,
+      activeMatchId,
+      competitionMode,
+      practiceIterations: itersToSave,
+      practiceStats,
+      practiceInitialRepeatCounts,
+    })
+  }, [screen, competitors, roundTime, battleRoundCount, matches, activeMatchId, competitionMode, practiceIterations, practiceStats, practiceInitialRepeatCounts])
 
   useEffect(() => {
     setNavImgBroken(false)
@@ -561,6 +577,16 @@ function AppShell() {
     goToPracticeSetup()
   }, [goToPracticeSetup])
 
+  // Resume: go back from setup to live without resetting iteration history.
+  // Regenerates current round with (possibly updated) competitor list.
+  const handleResumePractice = useCallback((finalCompetitors, selectedTime) => {
+    setRoundTime(selectedTime)
+    if (finalCompetitors.join(',') !== competitors.join(',')) {
+      runPracticeRegenerate(finalCompetitors)
+    }
+    goToPracticeLive()
+  }, [competitors, runPracticeRegenerate, goToPracticeLive])
+
   const liveAppearances = useMemo(() => {
     const base = { ...(practiceStats.appearances ?? {}) }
     for (const m of matches) {
@@ -830,6 +856,9 @@ function AppShell() {
               battleRoundCount={battleRoundCount}
               setBattleRoundCount={setBattleRoundCount}
               onStart={handleStartTournament}
+              onResume={handleResumePractice}
+              isResumingPractice={screen === SCREENS.PRACTICE_SETUP && practiceIterations.length > 0}
+              sessionStats={screen === SCREENS.PRACTICE_SETUP ? sessionDanceCounts : null}
               onOpenPromoMenu={() => setMenuOpen(true)}
             />
           )}

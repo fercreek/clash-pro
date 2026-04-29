@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { X, Plus, Trash2, Users } from 'lucide-react'
 import { usePlan } from '../hooks/usePlan'
 
-export default function PracticeRosterEditModal({ open, onClose, initialNames, onApply, maxCompetitors: maxProp }) {
+export default function PracticeRosterEditModal({ open, onClose, initialNames, onApply, sessionStats = null, sessionPairings = null, maxCompetitors: maxProp }) {
   const { isFree, maxCompetitors: planMax } = usePlan()
   const cap = maxProp ?? (isFree ? planMax : 64)
   const [rows, setRows] = useState(() => (initialNames.length ? [...initialNames] : ['', '']))
@@ -16,6 +16,28 @@ export default function PracticeRosterEditModal({ open, onClose, initialNames, o
   useEffect(() => {
     if (open) setLocalError(null)
   }, [open])
+
+  const balanceInfo = useMemo(() => {
+    if (!sessionStats || Object.keys(sessionStats).length === 0) return null
+    const entries = Object.entries(sessionStats).sort((a, b) => b[1] - a[1])
+    const counts = entries.map(([, c]) => c)
+    const max = counts[0] ?? 0
+    const min = counts[counts.length - 1] ?? 0
+    const diff = max - min
+    const overusedPairs = []
+    if (sessionPairings?.length) {
+      const pairMap = new Map()
+      for (const m of sessionPairings) {
+        const key = [m.playerA, m.playerB].sort().join(' ⇄ ')
+        pairMap.set(key, (pairMap.get(key) ?? 0) + 1)
+      }
+      for (const [pair, count] of pairMap) {
+        if (count >= 2) overusedPairs.push({ pair, count })
+      }
+      overusedPairs.sort((a, b) => b.count - a.count)
+    }
+    return { entries, max, diff, overusedPairs }
+  }, [sessionStats, sessionPairings])
 
   if (!open) return null
 
@@ -66,6 +88,40 @@ export default function PracticeRosterEditModal({ open, onClose, initialNames, o
           Mismo número de nombres: se mantienen rondas y progreso. Si cambia el número, al guardar se pedirá
           confirmación para regenerar la iteración actual.
         </p>
+
+        {balanceInfo && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Esta sesión</p>
+              <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                balanceInfo.diff <= 1
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : balanceInfo.diff <= 3
+                  ? 'bg-amber-500/15 text-amber-400'
+                  : 'bg-red-500/15 text-red-400'
+              }`}>
+                {balanceInfo.diff <= 1 ? 'Balanceado' : `+${balanceInfo.diff} dif`}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {balanceInfo.entries.map(([name, count]) => (
+                <div key={name} className="flex items-center gap-1">
+                  <span className="text-xs text-zinc-400 truncate max-w-[80px]">{name}</span>
+                  <span className="text-xs font-black text-red-400 tabular-nums">{count}</span>
+                </div>
+              ))}
+            </div>
+            {balanceInfo.overusedPairs.length > 0 && (
+              <div className="pt-1 border-t border-zinc-800 space-y-0.5">
+                <p className="text-[10px] text-amber-500 font-bold uppercase tracking-wide">Parejas repetidas</p>
+                {balanceInfo.overusedPairs.map(({ pair, count }) => (
+                  <p key={pair} className="text-xs text-zinc-400">{pair} <span className="text-amber-400 font-bold">×{count}</span></p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {localError && <p className="text-sm text-red-400 font-medium">{localError}</p>}
         <ul className="space-y-2">
           {rows.map((v, i) => (

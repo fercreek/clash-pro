@@ -68,10 +68,13 @@ export function generatePracticeRounds(names, iterationIndex = 0, repeatCounts =
         // Sort key: DB repeat history + in-call repeats (ascending = least-burdened first).
         // Tiebreaker: shuffle before sort so ties resolve randomly, not alphabetically.
         const partner = m.playerA === GHOST ? m.playerB : m.playerA
-        const score = (n) => (repeatCounts[n] ?? 0) + thisIterationRepeats[n]
-        const candidates = shuffled(
-          rotated.filter((n) => n !== partner && n !== prevRepeater)
-        ).sort((a, b) => score(a) - score(b))
+        const pool = rotated.filter((n) => n !== partner && n !== prevRepeater)
+        // Strict rotation: nobody repeats a 2nd time until everyone has repeated once.
+        // Find the minimum in-iteration repeat count among the pool, then restrict to that tier.
+        const minTier = pool.reduce((min, n) => Math.min(min, thisIterationRepeats[n] ?? 0), Infinity)
+        const tiered = pool.filter((n) => (thisIterationRepeats[n] ?? 0) <= minTier)
+        // Among the tier, sort by DB history as tiebreaker (ascending = least burdened first).
+        const candidates = shuffled(tiered).sort((a, b) => (repeatCounts[a] ?? 0) - (repeatCounts[b] ?? 0))
         const repeater = candidates[0] ?? rotated.find((n) => n !== partner)
         repeaterThisRound = repeater
         thisIterationRepeats[repeater] = (thisIterationRepeats[repeater] ?? 0) + 1
